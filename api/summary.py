@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from models import SummaryRequest, HumanAgentSummaryRequest
-from agents.airport_service import graph_manager
-from agents.airport_service.main_nodes.summary import summarize_human_agent_conversation
+from agents.ecommerce_service import graph_manager
+from agents.ecommerce_service.main_nodes.summary import summarize_human_agent_conversation
 from common.logging import get_logger
 
 # 使用专门的API摘要日志记录器
@@ -32,7 +32,7 @@ async def get_conversation_summary(summary_req: SummaryRequest, request: Request
         }
         summary = await graph_manager.summarize_conversation(
             thread_id=threads,
-            graph_id="airport_service_graph"
+            graph_id="ecommerce_service_graph"
         )
         # print(summary)
         return {

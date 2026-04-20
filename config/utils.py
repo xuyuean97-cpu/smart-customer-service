@@ -68,7 +68,33 @@ class ConfigManager:
             }
         
         return self._cache["model"]
-    
+
+    def get_auth_config(self) -> Dict[str, Any]:
+        """获取认证模块配置"""
+        if "auth" not in self._cache:
+            module_config = load_config("auth")
+            base_config = load_config() # 即使这里返回空字典也没关系
+
+            # 优先用 base_config，没有的话直接读 os.getenv
+            self._cache["auth"] = {
+                **module_config.get("auth", {}),
+                "redis": {
+                    "host": base_config.get("REDIS_HOST") or os.getenv("REDIS_HOST"),
+                    "port": base_config.get("REDIS_PORT") or os.getenv("REDIS_PORT"), # <--- 增加 os.getenv
+                    "password": base_config.get("REDIS_PASSWORD") or os.getenv("REDIS_PASSWORD"),
+                    "db": 0,
+                },
+                "database": {
+                    "type": base_config.get("DB_TYPE") or os.getenv("DB_TYPE"),
+                    "host": base_config.get("DB_HOST") or os.getenv("DB_HOST"),
+                    "port": base_config.get("DB_PORT") or os.getenv("DB_PORT"),
+                    "user": base_config.get("DB_USER") or os.getenv("DB_USER"),
+                    "password": base_config.get("DB_PASSWORD") or os.getenv("DB_PASSWORD"),
+                    "name": base_config.get("DB_DATABASE") or os.getenv("DB_DATABASE"),
+                }
+            }
+        
+        return self._cache["auth"]
     def clear_cache(self):
         """清除配置缓存"""
         self._cache.clear()

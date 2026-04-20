@@ -56,11 +56,10 @@ class AsyncSmartSqlBase:
         res = await self.embedding_provider.generate_embedding(data, **kwargs)
         return res["embedding"]
     
-    async def generate_sql(self, question: str, allow_llm_to_see_data=False, **kwargs) -> str:
+    async def generate_sql(self, question: str, user_id: str, allow_llm_to_see_data=False, **kwargs) -> str:
         """异步生成SQL查询"""
         logger.info(f"开始生成SQL，问题：{question}")
-        
-        
+        logger.info(f"generate_sql+DEBUG的用户id: {user_id}")
         try:
             # 并行获取相关信息
             logger.debug("并行获取相关信息")
@@ -80,6 +79,7 @@ class AsyncSmartSqlBase:
                 question_sql_list=question_sql_list,
                 ddl_list=ddl_list,
                 doc_list=doc_list,
+                user_id=user_id,
                 **kwargs
             )
             logger.info(f"构建SQL提示结束: {prompt}")
@@ -136,38 +136,86 @@ class AsyncSmartSqlBase:
                 await plugin.on_error(e, question=question, **kwargs)
             raise
     
-    async def _get_sql_prompt(self, question, question_sql_list, ddl_list, doc_list, **kwargs):
-        """构建SQL生成的提示信息"""
+    # async def _get_sql_prompt(self, question, question_sql_list, ddl_list, doc_list, **kwargs):
+    #     """构建SQL生成的提示信息"""
         
-        # 1. 准备模板变量
+    #     # 1. 准备模板变量
+    #     dialect = self.dialect
+    #     database_context = self._build_database_context(ddl_list)
+    #     descriptions = self._build_descriptions(doc_list)
+        
+    #     # 2. 获取或构建系统提示模板
+    #     system_prompt_template = self._get_system_prompt_template()
+        
+    #     # 3. 填充系统提示
+    #     system_prompt = system_prompt_template.format(
+    #         dialect=dialect,
+    #         database_context=database_context,
+    #         descriptions=descriptions,
+    #         # 注入当前北京时间，确保 SQL 生成时能处理“最近一小时”、“昨天”等逻辑
+    #         time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
+    #         **kwargs # 如果后续还有其他动态参数也能透传
+    #     )
+        
+    #     # 4. 构建消息列表
+    #     messages = [{"role": "system", "content": system_prompt}]
+        
+    #     # 5. 添加示例问答对
+    #     for example in question_sql_list:
+    #         if isinstance(example, dict) and "question" in example and "sql" in example:
+    #             messages.append({"role": "user", "content": example["question"]})
+    #             messages.append({"role": "assistant", "content": example["sql"]})
+        
+    #     # 6. 添加当前问题
+    #     messages.append({"role": "user", "content": question})
+        
+    #     return messages
+    async def _get_sql_prompt(self, question,user_id: str, question_sql_list, ddl_list, doc_list, **kwargs,):
+        """构建SQL生成的提示信息 (已修复：注入实时Schema)"""
+        
+        # 1. 动态获取实时数据库 Schema (这是修复的核心！)
+        live_schema_info = ""
+        if self.db_connector:
+            try:
+                # 调用 Connector 的 get_schema 方法
+                live_schema_info = await self.db_connector.get_schema()
+                logger.info(f"成功获取实时 Schema，长度: {len(live_schema_info)}")
+            except Exception as e:
+                logger.error(f"动态获取 Schema 失败: {e}")
+                live_schema_info = "Schema获取失败，请根据常识推断。"
+
+        # 2. 准备模板变量 (将实时 Schema 传入构建函数)
         dialect = self.dialect
-        database_context = self._build_database_context(ddl_list)
+        database_context = self._build_database_context(ddl_list, live_schema_info)
         descriptions = self._build_descriptions(doc_list)
-        
-        # 2. 获取或构建系统提示模板
+        # 3. 获取或构建系统提示模板
         system_prompt_template = self._get_system_prompt_template()
-        
-        # 3. 填充系统提示
+        logger.warning(user_id+'-----------------------------------------------------------------')
+        # 4. 填充系统提示
         system_prompt = system_prompt_template.format(
             dialect=dialect,
             database_context=database_context,
-            descriptions=descriptions
+            descriptions=descriptions,
+            user_id=user_id,
+            # 注入当前北京时间
+            time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
+            **kwargs
         )
         
-        # 4. 构建消息列表
+        # 5. 构建消息列表
         messages = [{"role": "system", "content": system_prompt}]
         
-        # 5. 添加示例问答对
+        # 6. 添加示例问答对
         for example in question_sql_list:
             if isinstance(example, dict) and "question" in example and "sql" in example:
                 messages.append({"role": "user", "content": example["question"]})
                 messages.append({"role": "assistant", "content": example["sql"]})
         
-        # 6. 添加当前问题
+        # 7. 添加当前问题
         messages.append({"role": "user", "content": question})
         
         return messages
-    
+
     def _get_system_prompt_template(self):
         """获取系统提示模板"""
         # 优先使用配置中的自定义提示
@@ -175,89 +223,184 @@ class AsyncSmartSqlBase:
         if custom_prompt:
             return custom_prompt
         
-        # 基于Anthropic最佳实践的系统提示模板
+#         # 基于Anthropic最佳实践的系统提示模板
+#         template = """<role>
+# 你是一个专业的 {dialect} 数据库查询专家，擅长将自然语言问题准确转换为 SQL 查询。
+# </role>
+
+# <task>
+# 根据用户的自然语言问题，结合提供的数据库上下文和业务描述，生成一个精确、高效的 SQL 查询。
+# </task>
+
+# <context>
+# {database_context}
+
+# {descriptions}
+
+# <sql_dialect>{dialect}</sql_dialect>
+# </context>
+
+# <constraints>
+# 1. 严格使用提供的数据库上下文中的表名和列名，不要创造不存在的元素
+# 2. 只能生成查询语句，不能生成插入、更新、删除语句
+# 2. 确保 SQL 语法符合指定的 {dialect} 方言规范
+# 3. 优先选择查询所需的最少列，避免不必要的 SELECT *
+# 4. 生成的查询必须是单一的、完整的、可执行的 SQL 语句
+# 5. 充分利用提供的示例和历史对话信息
+# 6. 确保查询逻辑准确反映用户的真实意图
+# 7. 如果用户查询具体的航班号，生成的 sql 中除了把航班号作为条件外，还需要把航班号作为查询字段。
+# 8. 如果用户当前提供的信息不足以生成SQL，一定不要强行生成SQL（特别不能生成查询所有航班明细的 sql）。而是返回空字符串。
+# </constraints>
+
+# <output_format>
+# 直接输出生成的 SQL 查询语句，不包含任何解释、注释或其他文本。
+
+# 示例输出格式：
+# SELECT column1, column2 FROM table_name WHERE condition;
+# </output_format>
+
+# <reasoning_steps>
+# 在生成 SQL 之前，请按以下步骤思考：
+
+# 1. **问题分析**: 理解用户问题的核心意图和所需信息
+# 2. **表结构映射**: 确定需要查询的表和相关字段
+# 3. **关系识别**: 识别表之间的关联关系（如需要JOIN）
+# 4. **条件提取**: 从问题中提取筛选条件和约束
+# 5. **聚合需求**: 判断是否需要聚合函数（COUNT、SUM等）
+# 6. **查询构建**: 按照SQL语法规范构建查询语句
+# 7. **优化检查**: 确保查询效率和准确性
+# </reasoning_steps>
+
+# 现在，请根据用户的问题生成相应的 SQL 查询："""
+        
+#         return template
+  # 基于电商业务逻辑优化的模板
         template = """<role>
-你是一个专业的 {dialect} 数据库查询专家，擅长将自然语言问题准确转换为 SQL 查询。
+你是一个专业的 {dialect} 数据库查询专家，擅长将电商业务的自然语言问题准确转换为高效的 SQL 查询。
 </role>
 
 <task>
-根据用户的自然语言问题，结合提供的数据库上下文和业务描述，生成一个精确、高效的 SQL 查询。
+根据用户的自然语言问题，结合提供的电商数据库上下文（订单、商品、库存、物流），生成一个精确、高效的 SQL 查询。
 </task>
 
 <context>
 {database_context}
-
+<current_user_info>
+当前用户的 User ID: {user_id}
+注意：当用户在问题中提到“我的”、“咱们”、“本账号”时，必须使用此 ID 进行过滤。
+</current_user_info>
 {descriptions}
 
 <sql_dialect>{dialect}</sql_dialect>
 </context>
 
 <constraints>
-1. 严格使用提供的数据库上下文中的表名和列名，不要创造不存在的元素
-2. 只能生成查询语句，不能生成插入、更新、删除语句
-2. 确保 SQL 语法符合指定的 {dialect} 方言规范
-3. 优先选择查询所需的最少列，避免不必要的 SELECT *
-4. 生成的查询必须是单一的、完整的、可执行的 SQL 语句
-5. 充分利用提供的示例和历史对话信息
-6. 确保查询逻辑准确反映用户的真实意图
-7. 如果用户查询具体的航班号，生成的 sql 中除了把航班号作为条件外，还需要把航班号作为查询字段。
-8. 如果用户当前提供的信息不足以生成SQL，一定不要强行生成SQL（特别不能生成查询所有航班明细的 sql）。而是返回空字符串。
+1. 严格使用提供的数据库上下文中的表名和列名，不要创造不存在的元素。
+2. 只能生成查询（SELECT）语句，严禁生成 INSERT、UPDATE、DELETE 或 DROP 语句。
+3. 确保 SQL 语法符合指定的 {dialect} 方言规范。
+4. 优先选择查询所需的最少列，避免使用 SELECT *，除非用户明确要求查看“所有详情”。
+5. 充分利用提供的示例和历史对话信息，处理指代消解（如“它”、“这个订单”）。
+6. **实体对齐**：如果用户查询具体的订单号(order_id)、物流单号(tracking_number)或商品编码(sku_id)，生成的 SQL 中除了将其作为 WHERE 条件外，**必须**将该 ID 作为查询字段返回，以便前端组件进行数据校验和渲染。
+7. **防御性编程**：如果用户当前提供的信息不足以生成有效的过滤条件，**严禁生成查询全表数据的 SQL**（例如：严禁生成不带 WHERE 条件的 SELECT * FROM orders）。
+8. **空结果处理**：如果信息严重不足（例如用户只说“查一下”但未指明查什么），请返回空字符串，不要尝试猜测意图。
+9. **时间范围**：对于“最近的订单”、“上个月的支出”等描述，请结合当前时间 {time} 生成准确的时间区间过滤条件。
+10. **别名规则**：如果使用表别名（Alias），必须保证 SELECT 子句和 JOIN 子句中的别名完全一致！
+   - 错误示例：SELECT t1.name FROM table t2
+   - 正确示例：SELECT t1.name FROM table t1
+11. 为了防止错误，**建议直接使用全表名**，或者使用极简别名（如 t1, t2）。
+12. 实体对齐：查询 order_id 时必须同时返回该字段。
 </constraints>
 
 <output_format>
 直接输出生成的 SQL 查询语句，不包含任何解释、注释或其他文本。
 
 示例输出格式：
-SELECT column1, column2 FROM table_name WHERE condition;
+SELECT order_id, status, total_amount FROM orders WHERE order_id = '12345678';
 </output_format>
 
 <reasoning_steps>
 在生成 SQL 之前，请按以下步骤思考：
-
-1. **问题分析**: 理解用户问题的核心意图和所需信息
-2. **表结构映射**: 确定需要查询的表和相关字段
-3. **关系识别**: 识别表之间的关联关系（如需要JOIN）
-4. **条件提取**: 从问题中提取筛选条件和约束
-5. **聚合需求**: 判断是否需要聚合函数（COUNT、SUM等）
-6. **查询构建**: 按照SQL语法规范构建查询语句
-7. **优化检查**: 确保查询效率和准确性
+1. **意图分析**: 用户是想查物流、查订单价格、还是查商品库存？
+2. **关键实体提取**: 提取订单 ID、SKU ID、时间区间等核心过滤因子。
+3. **关联路径**: 如果涉及商品名称和订单状态，是否需要 JOIN 订单表和商品表？
+4. **安全检查**: 该查询是否包含 WHERE 条件？是否会造成数据库性能负载？
+5. **构建与优化**: 按照 SQL 语法构建，并确保字段名完全匹配 Schema。
 </reasoning_steps>
 
 现在，请根据用户的问题生成相应的 SQL 查询："""
-        
         return template
     
-    def _build_database_context(self, ddl_list):
-        """构建数据库上下文信息"""
-        if not ddl_list:
-            return "<database_schema>\n暂无数据库架构信息\n</database_schema>"
+    # def _build_database_context(self, ddl_list):
+    #     """构建数据库上下文信息"""
+    #     if not ddl_list:
+    #         return "<database_schema>\n暂无数据库架构信息\n</database_schema>"
         
-        ddl_content = ""
-        for ddl in ddl_list:
-            if isinstance(ddl, dict) and "ddl" in ddl and "description" in ddl:
-                # 新格式：包含description和ddl
-                ddl_content += f"""<table_info>
-                                <description>{ddl['description']}</description>
-                                <ddl>{ddl['ddl']}</ddl>
-                                </table_info>
+    #     ddl_content = ""
+    #     for ddl in ddl_list:
+    #         if isinstance(ddl, dict) and "ddl" in ddl and "description" in ddl:
+    #             # 新格式：包含description和ddl
+    #             ddl_content += f"""<table_info>
+    #                             <description>{ddl['description']}</description>
+    #                             <ddl>{ddl['ddl']}</ddl>
+    #                             </table_info>
 
-                                """
-            else:
-                # 兼容旧格式
-                ddl_content += f"""<table_info>
-                                        <ddl>{ddl}</ddl>
-                                    </table_info>
+    #                             """
+    #         else:
+    #             # 兼容旧格式
+    #             ddl_content += f"""<table_info>
+    #                                     <ddl>{ddl}</ddl>
+    #                                 </table_info>
 
-                                    """
+    #                                 """
         
-        # 检查token限制
-        if self._estimate_tokens(ddl_content) > self.max_tokens * 0.4:  # 最多占用40%的token
-            logger.warning("DDL内容过长，将被截断")
-            ddl_content = ddl_content[:int(self.max_tokens * 0.4 * 2)]  # 简单截断
-            ddl_content += "\n<!-- 内容因长度限制被截断 -->"
+    #     # 检查token限制
+    #     if self._estimate_tokens(ddl_content) > self.max_tokens * 0.4:  # 最多占用40%的token
+    #         logger.warning("DDL内容过长，将被截断")
+    #         ddl_content = ddl_content[:int(self.max_tokens * 0.4 * 2)]  # 简单截断
+    #         ddl_content += "\n<!-- 内容因长度限制被截断 -->"
         
-        return f"""<database_schema>{ddl_content.strip()}</database_schema>"""
+    #     return f"""<database_schema>{ddl_content.strip()}</database_schema>"""
     
+    def _build_database_context(self, ddl_list, live_schema_info=""):
+        """构建数据库上下文信息 (已修复：优先使用实时 Schema)"""
+        
+        content = ""
+        
+        # 1. 优先放入实时的全库 Schema
+        if live_schema_info:
+            content += f"""
+<full_database_schema>
+{live_schema_info}
+</full_database_schema>
+"""
+
+        # 2. 补充检索到的 DDL (如果有)
+        if ddl_list:
+            ddl_content = ""
+            for ddl in ddl_list:
+                if isinstance(ddl, dict) and "ddl" in ddl:
+                    desc = ddl.get('description', '')
+                    ddl_content += f"Table Info: {desc}\nDDL: {ddl['ddl']}\n\n"
+                else:
+                    ddl_content += f"DDL: {ddl}\n\n"
+            
+            if ddl_content:
+                content += f"""
+<related_ddl_snippets>
+{ddl_content}
+</related_ddl_snippets>
+"""
+
+        if not content:
+            return "<database_schema>\n暂无数据库架构信息，请仔细检查数据库连接。\n</database_schema>"
+        
+        # 检查token限制 (简单截断防止溢出)
+        if self._estimate_tokens(content) > self.max_tokens * 0.6:
+            logger.warning("Schema内容过长，正在截断...")
+            content = content[:int(self.max_tokens * 0.6 * 2)]
+            content += "\n<!-- Schema truncated -->"
+        
+        return f"""<database_schema>{content}</database_schema>"""
     def _build_descriptions(self, doc_list):
         """构建描述信息"""
         if not doc_list:
@@ -334,24 +477,57 @@ SELECT column1, column2 FROM table_name WHERE condition;
             tmp.append(item)
         return tmp.copy()
 
-    async def ask(self, question: str, **kwargs) -> Dict[str, Any]:
+    async def ask(self, question: str,user_id: str, **kwargs) -> Dict[str, Any]:
         try:
-            # 使用generate_sql获取SQL
-            sql,ddl_list = await self.generate_sql(question=question, **kwargs)
+            logger.info(f"ask+DEBUG的用户id: {user_id}")
+# 使用generate_sql获取SQL
+            # 注意：这里的 sql 可能是字符串，也可能是包含错误信息的字典
+            raw_response, ddl_list = await self.generate_sql(question=question, user_id=user_id, **kwargs)
             
+            # --- 【新增修复逻辑开始】 ---
+            final_sql = ""
+            
+            # 1. 类型清洗：从字典中提取内容，或者直接使用字符串
+            if isinstance(raw_response, dict):
+                # 如果是字典，尝试提取 content，如果提取不到则为空
+                final_sql = raw_response.get('content', '')
+            elif isinstance(raw_response, str):
+                final_sql = raw_response
+            
+            # 2. 有效性检查：判断是否是真正的 SQL
+            # 如果是空字符串、None、或者 LLM 回复了 "空字符串"（根据之前的日志），则视为无效
+            is_valid_sql = False
+            if final_sql and isinstance(final_sql, str):
+                cleaned_sql = final_sql.strip()
+                if cleaned_sql and cleaned_sql != '空字符串':
+                    is_valid_sql = True
+                    final_sql = cleaned_sql  # 更新为去除空格后的版本
+            # --- 【新增修复逻辑结束】 ---
+
             sql_result = {
-                'sql': sql,
+                'sql': final_sql,  # 这里存入清洗后的字符串，前端展示更友好
                 'ddl': ddl_list,
                 'data': None,
                 'error': None
             }
             
-            # 执行SQL
-            result = await self.db_connector.run_sql(sql)
-            result = serialize_result(result)
-            
+            # 3. 根据检查结果决定是否执行数据库查询
+            if is_valid_sql:
+                try:
+                    # 执行SQL (确保传进去的是字符串 final_sql)
+                    result = await self.db_connector.run_sql(final_sql)
+                    result = serialize_result(result)
+                except Exception as db_err:
+                    # 捕获 SQL 执行层面的错误（如语法错误）
+                    logger.warning(f"SQL执行出错: {db_err}")
+                    result = {'error': str(db_err)}
+            else:
+                # 如果没有生成有效 SQL，直接返回空结果，避免报错
+                logger.info(f"未生成有效SQL，跳过数据库查询。原始内容类型: {type(raw_response)}")
+                result = []
+
+            # 4. 后续处理保持不变
             if self._estimate_tokens(str(result)) > self.max_tokens:
-                
                 sql_result['data'] = self.split_data(result)
                 return sql_result
             
@@ -362,6 +538,7 @@ SELECT column1, column2 FROM table_name WHERE condition;
                 # 在这里应用序列化函数
                 sql_result['data'] = result
             return sql_result
+
         except Exception as e:
             logger.error(f"问答处理失败: {str(e)}", exc_info=True)
             return {

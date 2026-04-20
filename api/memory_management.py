@@ -8,7 +8,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request, Query
 from pydantic import BaseModel, Field
 
-from agents.airport_service.context_engineering.memory_manager import memory_manager
+from agents.ecommerce_service.context_engineering.memory_manager import memory_manager
 from common.logging import get_logger
 
 logger = get_logger("api.memory_management")
@@ -101,7 +101,7 @@ async def get_conversation_history(
     
     try:
         # 这样更符合前端的预期行为
-        if not any([user_id, agent_id, run_id, application_id]):
+        if not any([user_id, agent_id, run_id, application_id,start_date, end_date, expert_verified is not None]):
             logger.warning("未提供任何查询条件，返回空结果")
             return ConversationHistoryResponse(
                 ret_code="000000",
@@ -285,7 +285,7 @@ async def get_user_profile(user_id: str):
                 ret_msg="操作成功",
                 data={
                     "user_id": user_id,
-                    "profile": user_profile.to_dict(),
+                    "profile": user_profile,
                     "has_profile": True
                 }
             )
@@ -301,7 +301,7 @@ async def get_user_profile(user_id: str):
             )
     
     except Exception as e:
-        logger.error(f"获取用户画像失败: {e}", exc_info=True)
+        logger.error(f": {e}", exc_info=True)
         return UserProfileResponse(
             ret_code="999999",
             ret_msg=f"获取用户画像失败: {str(e)}",
@@ -326,7 +326,7 @@ async def extract_user_profile(user_id: str):
                 ret_msg="用户画像提取成功",
                 data={
                     "user_id": user_id,
-                    "profile": user_profile.to_dict(),
+                    "profile": user_profile,
                     "extraction_completed": True
                 }
             )

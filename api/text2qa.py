@@ -6,11 +6,13 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel, Field
 import base64
-
-from agents.airport_service.context_engineering.memory_manager import memory_manager
+import httpx
+import os
+from agents.ecommerce_service.context_engineering.memory_manager import memory_manager
 from common.logging import get_logger
+from auth.redis_client import redis_client
 logger = get_logger("api.simple_text2qa")
-
+RAGFLOW_URL = os.getenv("KB_ADDRESS", "http://localhost:8000")
 
 # 创建路由器
 router = APIRouter(prefix="/text2qa", tags=["text2qa"])
@@ -98,13 +100,19 @@ async def add_qa_pair(qa_pair: QAPair, request: Request):
                 **(qa_pair.extra_fields or {})
             }
         )
-        
+                # ====== 修复点开始 ======
+        # 安全地获取图片列表：如果它是字典则取 "image_urls"，如果它本身就是列表则直接使用
+        final_images = []
+        if isinstance(image_result, dict):
+            final_images = image_result.get("image_urls", [])
+        elif isinstance(image_result, list):
+            final_images = image_result
         return APIResponse(
             success=True,
             message="QA对添加成功",
             data={
                 "expert_memory_id": expert_memory_id,
-                "processed_images": image_result["image_urls"]
+                "processed_images": final_images
             }
         )
     except Exception as e:
@@ -294,27 +302,56 @@ async def get_qa_count():
 
 @router.get("/ping", response_model=APIResponse)
 async def ping():
-    """健康检查 - 检查专家库和Redis的连接状态"""
+    """健康检查 - 检查专家库、Redis、RAG状态"""
+
     try:
-        # 检查专家库连接状态
         expert_alive = False
+        redis_alive = False
+        rag_alive = False
+
+        # 1️⃣ Expert Memory 检测
         try:
             await memory_manager.initialize()
             expert_alive = True
         except Exception as expert_error:
             logger.error(f"专家库连接检查失败: {str(expert_error)}")
-        
+
+        # 2️⃣ Redis 检测
+        try:
+            pong = redis_client.ping()
+            redis_alive = pong is True
+        except Exception as redis_error:
+            logger.error(f"Redis连接检查失败: {str(redis_error)}")
+        logger.info(f"RAGFLOW_URL: {RAGFLOW_URL}")
+        # 3️⃣ RAG 检测
+        rag_alive = await check_ragflow()
+
         return APIResponse(
             success=True,
             message="健康检查完成",
             data={
                 "expert_memory_alive": expert_alive,
+                "redis_alive": redis_alive,
+                "rag_alive": rag_alive
             }
         )
+
     except Exception as e:
         logger.error(f"健康检查失败: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+async def check_ragflow():
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
 
+            resp = await client.get(f"http://{RAGFLOW_URL}")
+
+            if resp.status_code < 500:
+                return True
+
+    except Exception as e:
+        logger.error(f"RAGFlow检测失败: {e}")
+
+    return False
 
 @router.post("/qa/with-upload", response_model=APIResponse)
 async def add_qa_with_file_upload(

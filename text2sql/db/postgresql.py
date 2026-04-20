@@ -99,48 +99,95 @@ class PostgresqlConnector(AsyncDBConnector):
                 "sql": sql
             }
     
+    # async def get_schema(self, **kwargs) -> str:
+    #     """异步获取数据库模式"""
+    #     if not self.pool:
+    #         await self.connect()
+        
+    #     schema_parts = []
+        
+    #     async with self.pool.acquire() as conn:
+    #         # 获取所有表和视图
+    #         tables = await conn.fetch("""
+    #             SELECT table_name, table_schema
+    #             FROM information_schema.tables
+    #             WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+    #             ORDER BY table_schema, table_name
+    #         """)
+            
+    #         for table in tables:
+    #             table_name = table['table_name']
+    #             table_schema = table['table_schema']
+                
+    #             # 获取列信息
+    #             columns = await conn.fetch("""
+    #                 SELECT column_name, data_type, is_nullable, column_default
+    #                 FROM information_schema.columns
+    #                 WHERE table_name = $1 AND table_schema = $2
+    #                 ORDER BY ordinal_position
+    #             """, table_name, table_schema)
+                
+    #             # 创建CREATE TABLE语句
+    #             create_stmt = [f"CREATE TABLE {table_schema}.{table_name} ("]
+                
+    #             column_defs = []
+    #             for column in columns:
+    #                 nullability = "NULL" if column['is_nullable'] == 'YES' else "NOT NULL"
+    #                 default = f"DEFAULT {column['column_default']}" if column['column_default'] else ""
+    #                 column_defs.append(
+    #                     f"    {column['column_name']} {column['data_type']} {nullability} {default}".strip()
+    #                 )
+                
+    #             create_stmt.append(",\n".join(column_defs))
+    #             create_stmt.append(");")
+                
+    #             schema_parts.append("\n".join(create_stmt))
+        
+    #     return "\n\n".join(schema_parts)
     async def get_schema(self, **kwargs) -> str:
-        """异步获取数据库模式"""
+        """
+        异步获取数据库模式 (LLM 友好格式)
+        返回格式示例:
+        Table: orders
+        Columns: order_id (varchar), status (varchar), create_time (timestamp)
+        """
         if not self.pool:
             await self.connect()
         
         schema_parts = []
         
-        async with self.pool.acquire() as conn:
-            # 获取所有表和视图
-            tables = await conn.fetch("""
-                SELECT table_name, table_schema
-                FROM information_schema.tables
-                WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
-                ORDER BY table_schema, table_name
-            """)
+        try:
+            async with self.pool.acquire() as conn:
+                # 1. 获取 public 模式下的所有表
+                tables = await conn.fetch("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public'
+                    ORDER BY table_name
+                """)
+                
+                if not tables:
+                    return "Database schema is empty."
+
+                for table in tables:
+                    t_name = table['table_name']
+                    
+                    # 2. 获取列名和类型
+                    columns = await conn.fetch("""
+                        SELECT column_name, data_type
+                        FROM information_schema.columns
+                        WHERE table_name = $1 AND table_schema = 'public'
+                        ORDER BY ordinal_position
+                    """, t_name)
+                    
+                    # 3. 格式化列信息: name (type)
+                    col_defs = [f"{c['column_name']} ({c['data_type']})" for c in columns]
+                    
+                    # 4. 拼接单个表的描述
+                    table_desc = f"Table: {t_name}\nColumns: {', '.join(col_defs)}"
+                    schema_parts.append(table_desc)
+                    
+            return "\n\n".join(schema_parts)
             
-            for table in tables:
-                table_name = table['table_name']
-                table_schema = table['table_schema']
-                
-                # 获取列信息
-                columns = await conn.fetch("""
-                    SELECT column_name, data_type, is_nullable, column_default
-                    FROM information_schema.columns
-                    WHERE table_name = $1 AND table_schema = $2
-                    ORDER BY ordinal_position
-                """, table_name, table_schema)
-                
-                # 创建CREATE TABLE语句
-                create_stmt = [f"CREATE TABLE {table_schema}.{table_name} ("]
-                
-                column_defs = []
-                for column in columns:
-                    nullability = "NULL" if column['is_nullable'] == 'YES' else "NOT NULL"
-                    default = f"DEFAULT {column['column_default']}" if column['column_default'] else ""
-                    column_defs.append(
-                        f"    {column['column_name']} {column['data_type']} {nullability} {default}".strip()
-                    )
-                
-                create_stmt.append(",\n".join(column_defs))
-                create_stmt.append(");")
-                
-                schema_parts.append("\n".join(create_stmt))
-        
-        return "\n\n".join(schema_parts)
+        except Exception as e:
+            return f"Error getting schema: {str(e)}"

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能客服助手 - 宝安小飞</title>
+    <title>智能客服助手</title>
     <style>
         * {
             margin: 0;
@@ -722,7 +722,7 @@
 <body>
     <div class="header">
         <div class="header-content">
-            <h1>✈️ 宝安小飞 - 智能客服助手</h1>
+            <h1>智能客服助手</h1>
             <div class="status-indicator" id="statusIndicator">
                 <div class="status-dot"></div>
                 <span id="statusText">已连接</span>
@@ -733,25 +733,25 @@
     <div class="chat-container">
         <div class="messages-area" id="messagesArea">
             <div class="welcome-screen" id="welcomeScreen">
-                <h2>👋 您好！我是宝安小飞</h2>
-                <p>我可以帮您查询航班信息、办理业务、解答疑问等。请问有什么可以帮您？</p>
+                <h2>👋 您好！我是智能客服</h2>
+                <p>我可以帮您查询物流信息、办理业务、解答疑问等。请问有什么可以帮您？</p>
                 
                 <div class="quick-questions">
-                    <div class="quick-question" onclick="sendQuickQuestion('查询航班动态')">
-                        <div class="quick-question-icon">✈️</div>
-                        <div class="quick-question-text">查询航班动态</div>
+                    <div class="quick-question" onclick="sendQuickQuestion('订单与物流查询')">
+                        <div class="quick-question-icon">🔍</div>
+                        <div class="quick-question-text">订单与物流查询</div>
                     </div>
-                    <div class="quick-question" onclick="sendQuickQuestion('行李规定')">
-                        <div class="quick-question-icon">🧳</div>
-                        <div class="quick-question-text">行李规定</div>
+                    <div class="quick-question" onclick="sendQuickQuestion('修改订单')">
+                        <div class="quick-question-icon">✏️</div>
+                        <div class="quick-question-text">修改订单</div>
                     </div>
-                    <div class="quick-question" onclick="sendQuickQuestion('值机办理')">
-                        <div class="quick-question-icon">🎫</div>
-                        <div class="quick-question-text">值机办理</div>
+                    <div class="quick-question" onclick="sendQuickQuestion('商品导购与推荐')">
+                        <div class="quick-question-icon">🌟</div>
+                        <div class="quick-question-text">商品导购与推荐</div>
                     </div>
-                    <div class="quick-question" onclick="sendQuickQuestion('机场服务设施')">
-                        <div class="quick-question-icon">🏢</div>
-                        <div class="quick-question-text">机场服务设施</div>
+                    <div class="quick-question" onclick="sendQuickQuestion('售后政策与服务')">
+                        <div class="quick-question-icon">🛡️</div>
+                        <div class="quick-question-text">售后政策与服务</div>
                     </div>
                 </div>
             </div>
@@ -811,9 +811,10 @@
         // 全局变量
         let ws = null;
         let currentThreadId = generateThreadId();
-        let currentUserId = generateUserId();
+        let currentUserId = getUserId();
         let selectedImage = null;
         let isConnected = false;
+        let token = getToken();
         let currentMessageElement = null; // 当前正在接收的消息元素
         let lastUserQuery = ''; // 最后一次用户输入的问题
         let lastUserImage = null; // 最后一次用户上传的图片
@@ -823,13 +824,16 @@
             return 'thread_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
 
-        function generateUserId() {
-            return 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        function getUserId() {
+            return localStorage.getItem('user_id');
         }
-
+        function getToken() {
+            // 在实际应用中，您可能需要从服务器获取token
+            return localStorage.getItem('access_token');
+        }
         // 初始化WebSocket连接
         function initWebSocket() {
-            const wsUrl = `ws://localhost:8081/api/v1/airport-assistant/chat/ws`;
+            const wsUrl = `ws://localhost:8081/api/v1/ecommerce-assistantt/chat/ws`;
             
             ws = new WebSocket(wsUrl);
 
@@ -990,6 +994,8 @@
                 user_id: currentUserId,
                 query: message,
                 image: selectedImage,
+                token:token,
+                
                 metadata: {
                     query_source: "网页",
                     query_device: "电脑",
@@ -1561,6 +1567,7 @@
                 const requestData = {
                     thread_id: currentThreadId,
                     user_id: currentUserId,
+                    token: token,
                     query: lastUserQuery || undefined,
                     image: lastUserImage ? {
                         filename: "user_image.jpg",
@@ -1606,7 +1613,8 @@
                 const requestData = {
                     thread_id: currentThreadId,
                     user_id: currentUserId,
-                    query: lastUserQuery || undefined,
+                    token: token,
+                    query: lastUserQuery || undefined, 
                     image: lastUserImage ? {
                         filename: "user_image.jpg",
                         content_type: "image/jpeg",

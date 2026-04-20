@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 import logging
 
-from agents.airport_service.context_engineering.memory_manager import memory_manager
+from agents.ecommerce_service.context_engineering.memory_manager import memory_manager
 
 logger = logging.getLogger(__name__)
 
@@ -307,7 +307,7 @@ async def get_conversation_history(
 @profile_router.post("/trigger/auto")
 async def trigger_auto_extraction(
     user_id: str,
-    application_id: str = "airport_service",
+    application_id: str = "ecommerce_service",
     background_tasks: BackgroundTasks = None
 ):
     """

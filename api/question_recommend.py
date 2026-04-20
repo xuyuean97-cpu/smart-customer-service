@@ -2,7 +2,7 @@ import time
 from fastapi import APIRouter, HTTPException, Request
 import json
 from models import QuestionRecommendRequest, QuestionRecommendResponse, QuestionRecommendItem
-from agents.airport_service import graph_manager
+from agents.ecommerce_service import graph_manager
 from common.logging import get_logger
 
 # 使用专门的问题推荐日志记录器
@@ -73,12 +73,14 @@ async def get_question_recommendations(request: QuestionRecommendRequest, http_r
         } 
         logger.info(f"开始处理问题推荐: {request.query or '图片输入'}")
         result = await graph_manager.process_chat_message(
-            message=request.query or "图片识别和问题推荐",
+            message=request.query or '图片识别和问题推荐',
             thread_id=threads,
             graph_id="question_recommend_graph",
         )
         logger.info(f"返回结果类型: {type(result)},{result}")
         recommended_questions = json.loads(result)
+
+        
         processing_time = round(time.time() - start_time, 2)     
         # 构造响应
         response_item = QuestionRecommendItem(
@@ -101,7 +103,7 @@ async def get_question_recommendations(request: QuestionRecommendRequest, http_r
         error_item = QuestionRecommendItem(
             thread_id=request.thread_id,
             user_id=request.user_id,
-            recommended_questions=["是否可以携带小刀上飞机？", "充电宝可以放在随身行李里吗？", "充电宝的安全检查要求是什么？"],
+            recommended_questions=["是否可以七天无理由退货？", "充电宝可以放在随身行李里吗？", "充电宝的安全检查要求是什么？"],
             processing_time="0s"
         )
         

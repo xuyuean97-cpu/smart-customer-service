@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>用户登录/注册</title>
+<style>
+  body { font-family: Arial, sans-serif; background-color: #f4f4f4; display: flex; justify-content: center; align-items: center; height: 100vh; }
+  .container { background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); width: 320px; }
+  h2 { text-align: center; margin-bottom: 20px; }
+  input { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; }
+  button { width: 100%; padding: 10px; background-color: #007bff; color: #fff; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 10px; }
+  button:hover { background-color: #0056b3; }
+  .toggle-btn { background-color: #6c757d; margin-bottom: 10px; }
+  .toggle-btn:hover { background-color: #5a6268; }
+  .send-code-btn { width: auto; padding: 8px 12px; margin-left: 5px; background-color: #28a745; }
+  .send-code-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+  .message { color: red; text-align: center; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2 id="formTitle">登录</h2>
+  <div class="message" id="message"></div>
+
+  <input type="text" id="phone" placeholder="手机号">
+  <input type="password" id="password" placeholder="密码">
+  
+  <div style="display: flex;">
+    <input type="text" id="code" placeholder="验证码" style="flex:1; display:none;">
+    <button id="sendCodeBtn" class="send-code-btn" style="display:none;">发送验证码</button>
+  </div>
+
+  <button id="submitBtn">登录</button>
+  <button id="toggleFormBtn" class="toggle-btn">切换注册</button>
+  <button id="toggleLoginTypeBtn" class="toggle-btn">切换验证码登录</button>
+</div>
+
+<script>
+let isLogin = true; // true: 登录, false: 注册
+let loginType = "password"; // 默认密码登录
+let countdown = 0;
+let timer = null;
+
+const phoneInput = document.getElementById('phone');
+const passwordInput = document.getElementById('password');
+const codeInput = document.getElementById('code');
+const sendCodeBtn = document.getElementById('sendCodeBtn');
+const messageEl = document.getElementById('message');
+const submitBtn = document.getElementById('submitBtn');
+const toggleFormBtn = document.getElementById('toggleFormBtn');
+const toggleLoginTypeBtn = document.getElementById('toggleLoginTypeBtn');
+const formTitle = document.getElementById('formTitle');
+
+// 切换登录/注册
+toggleFormBtn.addEventListener('click', () => {
+    isLogin = !isLogin;
+    messageEl.textContent = "";
+    if (isLogin) {
+        formTitle.textContent = "登录";
+        submitBtn.textContent = "登录";
+        toggleFormBtn.textContent = "切换注册";
+        toggleLoginTypeBtn.style.display = "inline-block";
+        passwordInput.style.display = "block";
+        codeInput.style.display = "none";
+        sendCodeBtn.style.display = "none";
+        loginType = "password";
+    } else {
+        formTitle.textContent = "注册";
+        submitBtn.textContent = "注册";
+        toggleFormBtn.textContent = "切换登录";
+        toggleLoginTypeBtn.style.display = "none";
+        passwordInput.style.display = "block";
+        codeInput.style.display = "block";
+        sendCodeBtn.style.display = "inline-block";
+        loginType = "password"; // 注册默认显示密码+验证码
+    }
+});
+
+// 切换登录方式
+toggleLoginTypeBtn.addEventListener('click', () => {
+    if (loginType === "password") {
+        loginType = "code";
+        passwordInput.style.display = "none";
+        codeInput.style.display = "block";
+        sendCodeBtn.style.display = "inline-block";
+        toggleLoginTypeBtn.textContent = "切换密码登录";
+    } else {
+        loginType = "password";
+        passwordInput.style.display = "block";
+        codeInput.style.display = "none";
+        sendCodeBtn.style.display = "none";
+        toggleLoginTypeBtn.textContent = "切换验证码登录";
+    }
+});
+
+// 发送验证码
+sendCodeBtn.addEventListener('click', async () => {
+    const phone = phoneInput.value.trim();
+    if (!phone) { messageEl.textContent = "请输入手机号"; return; }
+
+    try {
+        const res = await fetch("/api/auth/send-sms", {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({phone})
+        });
+        const data = await res.json();
+        if (res.ok) {
+            messageEl.style.color = "green";
+            messageEl.textContent = "验证码已发送";
+            startCountdown();
+        } else {
+            messageEl.style.color = "red";
+            messageEl.textContent = data.detail || data.message;
+        }
+    } catch (err) {
+        messageEl.style.color = "red";
+        messageEl.textContent = "请求失败：" + err.message;
+    }
+});
+
+// 倒计时
+function startCountdown() {
+    countdown = 60;
+    sendCodeBtn.disabled = true;
+    sendCodeBtn.textContent = `重新发送(${countdown}s)`;
+    timer = setInterval(() => {
+        countdown--;
+        if (countdown <= 0) {
+            clearInterval(timer);
+            sendCodeBtn.disabled = false;
+            sendCodeBtn.textContent = "发送验证码";
+        } else {
+            sendCodeBtn.textContent = `重新发送(${countdown}s)`;
+        }
+    }, 1000);
+}
+
+// 提交登录或注册
+submitBtn.addEventListener('click', async () => {
+    messageEl.textContent = "";
+    const phone = phoneInput.value.trim();
+    const password = passwordInput.value.trim();
+    const code = codeInput.value.trim();
+
+    if (!phone) { messageEl.textContent = "请输入手机号"; return; }
+    if (isLogin && loginType === "password" && !password) { messageEl.textContent = "请输入密码"; return; }
+    if ((isLogin && loginType === "code" || !isLogin) && !code) { messageEl.textContent = "请输入验证码"; return; }
+    if (!isLogin && !password) { messageEl.textContent = "请输入密码"; return; }
+
+    const url = isLogin ? "/api/auth/login" : "/api/auth/register";
+    const payload = {
+        phone,
+        login_type: isLogin ? loginType : "password",
+        password: password || undefined,
+        code: code || undefined
+    };
+
+    try {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+            // 1. 将 Token 存入本地存储
+            localStorage.setItem('access_token', data.access_token);
+            console.log("Access Token:", data.access_token);
+            // 2. (可选) 保存用户 ID 或其他信息
+            if(data.user_id) localStorage.setItem('user_id', data.user_id);
+            messageEl.style.color = "green";
+            messageEl.textContent = isLogin ? `登录成功! Token: ${data.access_token}` : "注册成功，请登录";
+        } else {
+            messageEl.style.color = "red";
+            messageEl.textContent = data.detail || data.message;
+        }
+    } catch (err) {
+        messageEl.style.color = "red";
+        messageEl.textContent = "请求失败：" + err.message;
+    }
+});
+</script>
+
+</body>
+</html>

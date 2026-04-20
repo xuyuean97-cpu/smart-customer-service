@@ -2,7 +2,7 @@ import time
 from fastapi import APIRouter, HTTPException, Request
 import json
 from models import BusinessRecommendRequest, BusinessRecommendResponse, BusinessRecommendItem
-from agents.airport_service import graph_manager
+from agents.ecommerce_service import graph_manager
 from common.logging import get_logger
 
 # 使用专门的商业推荐日志记录器
@@ -13,7 +13,7 @@ async def get_business_recommendations(request: BusinessRecommendRequest, http_r
     """
     获取商业推荐（非流式接口）
     
-    基于用户的当前问题和上下文，推荐相关的机场业务
+    基于用户的当前问题和上下文，推荐相关的电商业务
     """
     logger.info(f"收到商业推荐请求 - ThreadID: {request.thread_id}, UserID: {request.user_id}, Query: {request.query or 'None'}, HasImage: {bool(request.image)}")
     

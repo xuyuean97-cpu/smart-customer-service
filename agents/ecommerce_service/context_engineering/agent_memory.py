@@ -1,0 +1,834 @@
+"""
+智能体记忆集成工具
+按照LangGraph + Mem0最佳实践,为每个智能体节点集成记忆功能
+"""
+from typing import Dict, Any, List, Optional
+import asyncio
+import json
+from copy import deepcopy
+from .memory_manager import memory_manager
+from common.logging import get_logger
+
+logger = get_logger("agent_memory")
+class AgentMemoryMixin:
+    """
+    智能体记忆混入类
+    为智能体节点提供记忆存储和检索功能
+    """
+    @staticmethod
+    def _ensure_text(content: Any) -> str:
+        """
+        核心辅助函数：确保内容被转化为字符串，防止 .get() 报错
+        """
+        if isinstance(content, str):
+            return content
+        # 如果是 LangChain 的消息对象 (AIMessage, HumanMessage 等)
+        if hasattr(content, 'content'):
+            return str(content.content)
+        # 如果是字典
+        if isinstance(content, dict):
+            return str(content.get('content', str(content)))
+        # 其他类型强制转字符串
+        return str(content)
+
+    @staticmethod
+    async def store_agent_conversation_interaction(
+        user_id: str,
+        application_id: str,
+        run_id: str,
+        agent_id: str,
+        messages: Any,
+        response: Any,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[str]:
+        try:
+            # 辅助函数：强行提取文本
+            def get_text(obj):
+                if isinstance(obj, str): return obj
+                if hasattr(obj, 'content'): return str(obj.content)
+                if isinstance(obj, list) and len(obj) > 0: return get_text(obj[-1])
+                if isinstance(obj, dict): return str(obj.get('content', str(obj)))
+                return str(obj)
+
+            # 强行清洗所有输入参数为纯字符串
+            safe_user_id = str(user_id)
+            safe_response = get_text(response)
+            safe_query = get_text(messages)
+            
+            # 关键：如果 messages 是列表，转换成大模型能存的文本格式
+            if isinstance(messages, list):
+                safe_query = "\n".join([get_text(m) for m in messages[-2:]]) # 仅取最后两轮
+
+            # 执行底层存储，并增加 try-except 隔离
+            try:
+                memory_id = await memory_manager.store_conversation(
+                    user_id=safe_user_id,
+                    application_id=str(application_id),
+                    run_id=str(run_id),
+                    agent_id=str(agent_id),
+                    messages=safe_query,
+                    response=safe_response,
+                    metadata=metadata if isinstance(metadata, dict) else {}
+                )
+                logger.debug(f"记忆存储成功: {memory_id}")
+                return memory_id
+            except Exception as inner_e:
+                # 底层 store_conversation 内部报错（即你看到的 .get 报错位置）
+                # 这里捕获它，不让它向上抛出，保证主图逻辑能跑完并回复用户
+                logger.error(f"【底层存储错误已跳过】: {str(inner_e)}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"【Mixin封装层错误】: {str(e)}")
+            return None
+    @staticmethod
+    async def retrieve_relevant_conversation_memories(
+        query: str,
+        user_id: Optional[str] = None,
+        application_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        similarity_weight: float = 0.5,
+        time_weight: float = 0.2,
+        quality_weight: float = 0.3,
+        min_quality_score: float = 0.7,
+        time_decay_days: int = 30,
+        limit: int = 5,
+    ) -> List[Dict[str, Any]]:
+        try:
+            # 使用智能筛选功能
+            smart_memories = await memory_manager.get_smart_filtered_memories(
+                query=query,
+                user_id=user_id,
+                application_id=application_id,
+                agent_id=agent_id,
+                similarity_weight=similarity_weight,
+                time_weight=time_weight,
+                quality_weight=quality_weight,
+                min_quality_score=min_quality_score,
+                time_decay_days=time_decay_days,
+                limit=limit,
+            )
+            
+            logger.debug(f"智能筛选到 {len(smart_memories)} 条优质记忆")
+            return smart_memories
+            
+        except Exception as e:
+            logger.error(f"智能检索记忆失败: {e}")
+            return []
+
+    @staticmethod
+    async def retrieve_relevant_expert_qa_memories(
+        query: str,
+        application_id: Optional[str] = None,
+        expert_id: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        services: Optional[List[str]] = None,
+        limit: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """
+        检索相关专家QA记忆
+        
+        Args:
+            query: 查询文本
+            application_id: 应用名称筛选 (可选)
+            expert_id: 专家ID筛选 (可选)
+            tags: 标签筛选 (可选)
+            services: 服务筛选 (可选)
+            limit: 返回数量限制
+            
+        Returns:
+            相关专家QA记忆列表
+        """
+        try:
+            expert_qa_memories = await memory_manager.search_expert_qa(
+                query=query,
+                application_id=application_id,
+                expert_id=expert_id,
+                tags=tags,
+                services=services,
+                limit=limit,
+            )
+            
+            logger.debug(f"检索到 {len(expert_qa_memories)} 条专家QA记忆")
+            return expert_qa_memories
+            
+        except Exception as e:
+            logger.error(f"检索专家QA记忆失败: {e}")
+            return []
+    
+    
+def memory_enabled_agent(application_id: str,agent_id: Optional[str] = None):
+    def decorator(agent_func):
+        async def wrapper(state: Dict[str, Any], config=None, *args, **kwargs):
+            run_id = config["configurable"].get("thread_id", "unknown_thread") 
+            user_id = config["configurable"].get("user_id", "unknown_user")
+            user_query = state.get("user_query", "") if state.get("user_query", "") else config["configurable"].get("user_query", "")
+            metadata = state.get("metadata") if state.get("metadata") else config["configurable"].get("metadata", {})
+            new_metadata = deepcopy(metadata)   
+            try:
+                result = await agent_func(state, config, *args, **kwargs)
+                # 提取智能体回复
+                agent_response = ""
+                msg_name = ""
+                retrieval_result = None
+                if isinstance(result, dict):
+                    # 从返回的消息中提取内容
+                    messages = result.get("messages", [])
+                    if messages:
+                        agent_response = messages[-1].content
+                        msg_name = messages[-1].name
+                    if state.get("retrieval_result"):
+                        retrieval_result = state.get("retrieval_result")
+                    elif result.get("retrieval_result"):
+                        retrieval_result = result.get("retrieval_result")
+                    if retrieval_result:
+                        
+                        new_metadata["retrieval_content"] = retrieval_result.sql or retrieval_result.content or None
+                        new_metadata["retrieval_source"] = retrieval_result.source or None
+                        new_metadata["retrieval_score"] = retrieval_result.score or 0.0
+                        new_metadata["retrieval_query_list"] = json.dumps(retrieval_result.query_list,ensure_ascii=False) or None
+                    if state.get("pre_retrieval_result"):
+                        pre_retrieval_result = state.get("pre_retrieval_result")
+                        new_metadata["pre_retrieval_content"] = pre_retrieval_result.sql or pre_retrieval_result.content or None
+                        new_metadata["pre_retrieval_source"] = pre_retrieval_result.source or None
+                        new_metadata["pre_retrieval_score"] = pre_retrieval_result.score or 0.0
+                        new_metadata["pre_retrieval_query_list"] = json.dumps(pre_retrieval_result.query_list,ensure_ascii=False) or None
+                if user_query and agent_response:
+                    
+                    asyncio.create_task(
+                        AgentMemoryMixin.store_agent_conversation_interaction(
+                            user_id=user_id,
+                            application_id=application_id,
+                            run_id=run_id,
+                            agent_id=agent_id if agent_id else msg_name,
+                            messages=user_query,
+                            response=agent_response,
+                            metadata=new_metadata
+                        )
+                    )
+                
+                return result
+                
+            except Exception as e:
+                logger.error(f"智能体记忆装饰器异常: {agent_id} - {e}")
+                # 即使记忆功能失败，也要返回原始结果
+                if config is not None:
+                    return await agent_func(state, config, *args, **kwargs)
+                else:
+                    return await agent_func(state, *args, **kwargs)
+        
+        return wrapper
+    return decorator
+
+
+async def get_relevant_conversation_memories(
+    query: str,
+    user_id: Optional[str] = None,
+    application_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
+    score_limit: float = 0.8,
+    limit: int = 10
+) -> List[Dict[str, Any]]:
+    """获取相关记忆 - 使用 memory_manager 统一接口"""
+    try:
+        results = await AgentMemoryMixin.retrieve_relevant_conversation_memories(
+            query=query,
+            user_id=user_id,
+            application_id=application_id,
+            agent_id=agent_id,  
+            min_quality_score=score_limit,
+            limit=limit
+        )
+        
+        relevant_memories = []
+        for result in results:
+            if result.get('composite_score', 0.0) >= score_limit:
+                memory_item = {
+                    "query": result.get('query', ''),
+                    "response": result.get('response', ''),
+                    "created_at": result.get('created_at', ''),
+                }
+                relevant_memories.append(memory_item)
+        
+        return relevant_memories
+        
+    except Exception as e:
+        logger.error(f"获取相关记忆失败: {agent_id} - {e}")
+        return []
+
+
+async def get_relevant_expert_qa_memories(
+    query: str,
+    application_id: Optional[str] = None,
+    expert_id: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    services: Optional[List[str]] = None,
+    score_limit: float = 0.0,  # 改为更宽松的默认值
+    limit: int = 10
+) -> List[Dict[str, Any]]:
+    """获取相关专家QA记忆 - 使用 memory_manager 统一接口"""
+    try:
+        results = await memory_manager.search_expert_qa( 
+            query=query,
+            application_id=application_id,
+            expert_id=expert_id,
+            tags=tags,
+            services=services,
+            limit=limit
+        )
+        
+        relevant_qa_memories = []
+        for result in results:
+            # 按相关度评分筛选
+            if result.get('relevance_score', 0.0) <= score_limit:
+                memory_item = {
+                    "question": result.get('question', ''),
+                    "answer": result.get('answer', ''),
+                    "expert_id": result.get('expert_id', ''),
+                    "application_id": result.get('application_id', ''),
+                    "images": result.get('images', ''),
+                    "tags": result.get('tags', ''),
+                    "services": result.get('services', ''),
+                    "relevance_score": result.get('relevance_score', 0.0),
+                    "created_at": result.get('created_at', ''),
+                }
+                relevant_qa_memories.append(memory_item)
+        
+        logger.debug(f"原始搜索结果: {len(results)} 条，筛选后: {len(relevant_qa_memories)} 条 (score_limit={score_limit})")
+        return relevant_qa_memories
+        
+    except Exception as e:
+        logger.error(f"获取相关专家QA记忆失败: {e}")
+        return []
+
+
+
+class MemoryEnabledAgent:
+    """
+    支持记忆的智能体基类
+    可以被具体的智能体继承使用
+    """
+    
+    def __init__(self, application_id: str, agent_id: str):
+        self.application_id = application_id
+        self.agent_id = agent_id
+        self.memory_mixin = AgentMemoryMixin()
+    
+    async def store_interaction(
+        self,
+        user_id: str,
+        thread_id: str,
+        user_query: str,
+        agent_response: str,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[str]:
+        """存储交互记忆"""
+        return await self.memory_mixin.store_agent_interaction(
+            user_id=user_id,
+            application_id=self.application_id,
+            run_id=thread_id,
+            agent_id=self.agent_id,
+            user_query=user_query,
+            agent_response=agent_response,
+            metadata=metadata
+        )
+    
+    async def get_relevant_memories(
+        self,
+        user_id: str,
+        current_query: str,
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """获取相关记忆"""
+        return await self.memory_mixin.retrieve_relevant_memories(
+            user_id=user_id,
+            current_query=current_query,
+            agent_id=self.agent_id,
+            limit=limit
+        )
+    
+    async def get_smart_filtered_memories(
+        self,
+        user_id: str,
+        current_query: str,
+        limit: int = 5,
+        similarity_weight: float = 0.5,
+        time_weight: float = 0.2,
+        quality_weight: float = 0.3,
+        min_quality_score: float = 0.7,
+        time_decay_days: int = 30
+    ) -> List[Dict[str, Any]]:
+        """获取智能筛选的记忆"""
+        return await self.memory_mixin.retrieve_smart_filtered_memories(
+            user_id=user_id,
+            current_query=current_query,
+            agent_name=self.agent_name,
+            limit=limit,
+            similarity_weight=similarity_weight,
+            time_weight=time_weight,
+            quality_weight=quality_weight,
+            min_quality_score=min_quality_score,
+            time_decay_days=time_decay_days
+        )
+
+    async def get_relevant_expert_qa_memories(
+        self,
+        current_query: str,
+        expert_id: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        services: Optional[List[str]] = None,
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """获取相关专家QA记忆"""
+        return await AgentMemoryMixin.retrieve_relevant_expert_qa_memories(
+            query=current_query,
+            application_id=self.application_id,
+            expert_id=expert_id,
+            tags=tags,
+            services=services,
+            limit=limit
+        )
+"""
+智能体记忆集成工具
+按照LangGraph + Mem0最佳实践,为每个智能体节点集成记忆功能
+"""
+from typing import Dict, Any, List, Optional
+import asyncio
+import json
+from copy import deepcopy
+from .memory_manager import memory_manager
+from common.logging import get_logger
+
+logger = get_logger("agent_memory")
+class AgentMemoryMixin:
+    """
+    智能体记忆混入类
+    为智能体节点提供记忆存储和检索功能
+    """
+    @staticmethod
+    def _ensure_text(content: Any) -> str:
+        """
+        核心辅助函数：确保内容被转化为字符串，防止 .get() 报错
+        """
+        if isinstance(content, str):
+            return content
+        # 如果是 LangChain 的消息对象 (AIMessage, HumanMessage 等)
+        if hasattr(content, 'content'):
+            return str(content.content)
+        # 如果是字典
+        if isinstance(content, dict):
+            return str(content.get('content', str(content)))
+        # 其他类型强制转字符串
+        return str(content)
+    @staticmethod
+    # async def store_agent_conversation_interaction(
+    #     user_id: str,
+    #     application_id: str,
+    #     run_id: str,
+    #     agent_id: str,
+    #     messages,
+    #     response: Any,
+    #     metadata: Optional[Dict[str, Any]] = None
+    # ) -> Optional[str]:
+    #     """
+    #     存储智能体交互记忆
+        
+    #     Args:
+    #         user_id: 用户ID
+    #         application_id: 应用ID
+    #         run_id: 会话ID  
+    #         agent_id: 智能体ID
+    #         messages: 用户查询
+    #         response: 智能体回复
+    #         metadata: 额外元数据
+            
+    #     Returns:
+    #         memory_id: 记忆id
+    #     """
+    #     try:
+    #         # 【核心修复逻辑】
+    #         # 1. 确保 response 是纯字符串，防止底层 memory_manager.store_conversation 内部调用 .get() 崩溃
+    #         safe_response = AgentMemoryMixin._ensure_text(response)
+            
+    #         # 2. 确保 messages (通常是用户问题) 也是纯字符串
+    #         # 如果 messages 是列表（对话历史），取最后一条的内容
+    #         if isinstance(messages, list) and len(messages) > 0:
+    #             safe_messages = AgentMemoryMixin._ensure_text(messages[-1])
+    #         else:
+    #             safe_messages = AgentMemoryMixin._ensure_text(messages)
+
+    #         memory_id = await memory_manager.store_conversation(
+    #             user_id=user_id,
+    #             application_id=application_id,
+    #             run_id=run_id,
+    #             agent_id=agent_id,
+    #             messages=safe_messages, # 使用清洗后的字符串
+    #             response=safe_response, # 使用清洗后的字符串
+    #             metadata=metadata
+    #         )
+            
+    #         logger.debug(f"智能体交互已存储: {agent_id} - {memory_id}")
+    #         return memory_id
+            
+    #     except Exception as e:
+    #         logger.error(f"存储智能体交互失败: {agent_id} - {str(e)}")
+    #         return None
+    @staticmethod
+    async def store_agent_conversation_interaction(
+        user_id: str,
+        application_id: str,
+        run_id: str,
+        agent_id: str,
+        messages: Any,
+        response: Any,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[str]:
+        try:
+            # 辅助函数：强行提取文本
+            def get_text(obj):
+                if isinstance(obj, str): return obj
+                if hasattr(obj, 'content'): return str(obj.content)
+                if isinstance(obj, list) and len(obj) > 0: return get_text(obj[-1])
+                if isinstance(obj, dict): return str(obj.get('content', str(obj)))
+                return str(obj)
+
+            # 强行清洗所有输入参数为纯字符串
+            safe_user_id = str(user_id)
+            safe_response = get_text(response)
+            safe_query = get_text(messages)
+            
+            # 关键：如果 messages 是列表，转换成大模型能存的文本格式
+            if isinstance(messages, list):
+                safe_query = "\n".join([get_text(m) for m in messages[-2:]]) # 仅取最后两轮
+
+            # 执行底层存储，并增加 try-except 隔离
+            try:
+                logger.info(f"memory query={safe_query}")
+                logger.info(f"memory response={safe_response}")
+                memory_id = await memory_manager.store_conversation(
+                    user_id=safe_user_id,
+                    application_id=str(application_id),
+                    run_id=str(run_id),
+                    agent_id=str(agent_id),
+                    messages=safe_query,
+                    response=safe_response,
+                    metadata=metadata if isinstance(metadata, dict) else {}
+                )
+                logger.debug(f"记忆存储成功: {memory_id}")
+                return memory_id
+            except Exception as inner_e:
+                # 底层 store_conversation 内部报错（即你看到的 .get 报错位置）
+                # 这里捕获它，不让它向上抛出，保证主图逻辑能跑完并回复用户
+                logger.error(f"【底层存储错误已跳过】: {str(inner_e)}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"【Mixin封装层错误】: {str(e)}")
+            return None
+    @staticmethod
+    async def retrieve_relevant_conversation_memories(
+        query: str,
+        user_id: Optional[str] = None,
+        application_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        similarity_weight: float = 0.5,
+        time_weight: float = 0.2,
+        quality_weight: float = 0.3,
+        min_quality_score: float = 0.7,
+        time_decay_days: int = 30,
+        limit: int = 5,
+    ) -> List[Dict[str, Any]]:
+        try:
+            # 使用智能筛选功能
+            smart_memories = await memory_manager.get_smart_filtered_memories(
+                query=query,
+                user_id=user_id,
+                application_id=application_id,
+                agent_id=agent_id,
+                similarity_weight=similarity_weight,
+                time_weight=time_weight,
+                quality_weight=quality_weight,
+                min_quality_score=min_quality_score,
+                time_decay_days=time_decay_days,
+                limit=limit,
+            )
+            
+            logger.debug(f"智能筛选到 {len(smart_memories)} 条优质记忆")
+            return smart_memories
+            
+        except Exception as e:
+            logger.error(f"智能检索记忆失败: {e}")
+            return []
+
+    @staticmethod
+    async def retrieve_relevant_expert_qa_memories(
+        query: str,
+        application_id: Optional[str] = None,
+        expert_id: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        services: Optional[List[str]] = None,
+        limit: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """
+        检索相关专家QA记忆
+        
+        Args:
+            query: 查询文本
+            application_id: 应用名称筛选 (可选)
+            expert_id: 专家ID筛选 (可选)
+            tags: 标签筛选 (可选)
+            services: 服务筛选 (可选)
+            limit: 返回数量限制
+            
+        Returns:
+            相关专家QA记忆列表
+        """
+        try:
+            expert_qa_memories = await memory_manager.search_expert_qa(
+                query=query,
+                application_id=application_id,
+                expert_id=expert_id,
+                tags=tags,
+                services=services,
+                limit=limit,
+            )
+            
+            logger.debug(f"检索到 {len(expert_qa_memories)} 条专家QA记忆")
+            return expert_qa_memories
+            
+        except Exception as e:
+            logger.error(f"检索专家QA记忆失败: {e}")
+            return []
+    
+    
+def memory_enabled_agent(application_id: str,agent_id: Optional[str] = None):
+    def decorator(agent_func):
+        async def wrapper(state: Dict[str, Any], config=None, *args, **kwargs):
+            run_id = config["configurable"].get("thread_id", "unknown_thread") 
+            user_id = config["configurable"].get("user_id", "unknown_user")
+            user_query = state.get("user_query", "") if state.get("user_query", "") else config["configurable"].get("user_query", "")
+            metadata = state.get("metadata") if state.get("metadata") else config["configurable"].get("metadata", {})
+            new_metadata = deepcopy(metadata)   
+            try:
+                result = await agent_func(state, config, *args, **kwargs)
+                # 提取智能体回复
+                agent_response = ""
+                msg_name = ""
+                retrieval_result = None
+                if isinstance(result, dict):
+                    # 从返回的消息中提取内容
+                    messages = result.get("messages", [])
+                    if messages:
+                        agent_response = messages[-1].content
+                        msg_name = messages[-1].name
+                    if state.get("retrieval_result"):
+                        retrieval_result = state.get("retrieval_result")
+                    elif result.get("retrieval_result"):
+                        retrieval_result = result.get("retrieval_result")
+                    if retrieval_result:
+                        
+                        new_metadata["retrieval_content"] = retrieval_result.sql or retrieval_result.content or None
+                        new_metadata["retrieval_source"] = retrieval_result.source or None
+                        new_metadata["retrieval_score"] = retrieval_result.score or 0.0
+                        new_metadata["retrieval_query_list"] = json.dumps(retrieval_result.query_list,ensure_ascii=False) or None
+                    if state.get("pre_retrieval_result"):
+                        pre_retrieval_result = state.get("pre_retrieval_result")
+                        new_metadata["pre_retrieval_content"] = pre_retrieval_result.sql or pre_retrieval_result.content or None
+                        new_metadata["pre_retrieval_source"] = pre_retrieval_result.source or None
+                        new_metadata["pre_retrieval_score"] = pre_retrieval_result.score or 0.0
+                        new_metadata["pre_retrieval_query_list"] = json.dumps(pre_retrieval_result.query_list,ensure_ascii=False) or None
+                if user_query and agent_response:
+                    
+                    asyncio.create_task(
+                        AgentMemoryMixin.store_agent_conversation_interaction(
+                            user_id=user_id,
+                            application_id=application_id,
+                            run_id=run_id,
+                            agent_id=agent_id if agent_id else msg_name,
+                            messages=user_query,
+                            response=agent_response,
+                            metadata=new_metadata
+                        )
+                    )
+                
+                return result
+                
+            except Exception as e:
+                logger.error(f"智能体记忆装饰器异常: {agent_id} - {e}")
+                # 即使记忆功能失败，也要返回原始结果
+                if config is not None:
+                    return await agent_func(state, config, *args, **kwargs)
+                else:
+                    return await agent_func(state, *args, **kwargs)
+        
+        return wrapper
+    return decorator
+
+
+async def get_relevant_conversation_memories(
+    query: str,
+    user_id: Optional[str] = None,
+    application_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
+    score_limit: float = 0.8,
+    limit: int = 10
+) -> List[Dict[str, Any]]:
+    """获取相关记忆 - 使用 memory_manager 统一接口"""
+    try:
+        results = await AgentMemoryMixin.retrieve_relevant_conversation_memories(
+            query=query,
+            user_id=user_id,
+            application_id=application_id,
+            agent_id=agent_id,  
+            min_quality_score=score_limit,
+            limit=limit
+        )
+        
+        relevant_memories = []
+        for result in results:
+            if result.get('composite_score', 0.0) >= score_limit:
+                memory_item = {
+                    "query": result.get('query', ''),
+                    "response": result.get('response', ''),
+                    "created_at": result.get('created_at', ''),
+                }
+                relevant_memories.append(memory_item)
+        
+        return relevant_memories
+        
+    except Exception as e:
+        logger.error(f"获取相关记忆失败: {agent_id} - {e}")
+        return []
+
+
+async def get_relevant_expert_qa_memories(
+    query: str,
+    application_id: Optional[str] = None,
+    expert_id: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    services: Optional[List[str]] = None,
+    score_limit: float = 0.0,  # 改为更宽松的默认值
+    limit: int = 10
+) -> List[Dict[str, Any]]:
+    """获取相关专家QA记忆 - 使用 memory_manager 统一接口"""
+    try:
+        results = await memory_manager.search_expert_qa( 
+            query=query,
+            application_id=application_id,
+            expert_id=expert_id,
+            tags=tags,
+            services=services,
+            limit=limit
+        )
+        
+        relevant_qa_memories = []
+        for result in results:
+            # 按相关度评分筛选
+            if result.get('relevance_score', 0.0) <= score_limit:
+                memory_item = {
+                    "question": result.get('question', ''),
+                    "answer": result.get('answer', ''),
+                    "expert_id": result.get('expert_id', ''),
+                    "application_id": result.get('application_id', ''),
+                    "images": result.get('images', ''),
+                    "tags": result.get('tags', ''),
+                    "services": result.get('services', ''),
+                    "relevance_score": result.get('relevance_score', 0.0),
+                    "created_at": result.get('created_at', ''),
+                }
+                relevant_qa_memories.append(memory_item)
+        
+        logger.debug(f"原始搜索结果: {len(results)} 条，筛选后: {len(relevant_qa_memories)} 条 (score_limit={score_limit})")
+        return relevant_qa_memories
+        
+    except Exception as e:
+        logger.error(f"获取相关专家QA记忆失败: {e}")
+        return []
+
+
+
+class MemoryEnabledAgent:
+    """
+    支持记忆的智能体基类
+    可以被具体的智能体继承使用
+    """
+    
+    def __init__(self, application_id: str, agent_id: str):
+        self.application_id = application_id
+        self.agent_id = agent_id
+        self.memory_mixin = AgentMemoryMixin()
+    
+    async def store_interaction(
+        self,
+        user_id: str,
+        thread_id: str,
+        user_query: str,
+        agent_response: str,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[str]:
+        """存储交互记忆"""
+        return await self.memory_mixin.store_agent_interaction(
+            user_id=user_id,
+            application_id=self.application_id,
+            run_id=thread_id,
+            agent_id=self.agent_id,
+            user_query=user_query,
+            agent_response=agent_response,
+            metadata=metadata
+        )
+    
+    # async def get_relevant_memories(
+    #     self,
+    #     user_id: str,
+    #     current_query: str,
+    #     limit: int = 5
+    # ) -> List[Dict[str, Any]]:
+    #     """获取相关记忆"""
+    #     return await self.memory_mixin.retrieve_relevant_memories(
+    #         user_id=user_id,
+    #         current_query=current_query,
+    #         agent_id=self.agent_id,
+    #         limit=limit
+    #     )
+    
+    # async def get_smart_filtered_memories(
+    #     self,
+    #     user_id: str,
+    #     current_query: str,
+    #     limit: int = 5,
+    #     similarity_weight: float = 0.5,
+    #     time_weight: float = 0.2,
+    #     quality_weight: float = 0.3,
+    #     min_quality_score: float = 0.7,
+    #     time_decay_days: int = 30
+    # ) -> List[Dict[str, Any]]:
+    #     """获取智能筛选的记忆"""
+    #     return await self.memory_mixin.retrieve_smart_filtered_memories(
+    #         user_id=user_id,
+    #         current_query=current_query,
+    #         agent_name=self.agent_name,
+    #         limit=limit,
+    #         similarity_weight=similarity_weight,
+    #         time_weight=time_weight,
+    #         quality_weight=quality_weight,
+    #         min_quality_score=min_quality_score,
+    #         time_decay_days=time_decay_days
+    #     )
+
+    # async def get_relevant_expert_qa_memories(
+    #     self,
+    #     current_query: str,
+    #     expert_id: Optional[str] = None,
+    #     tags: Optional[List[str]] = None,
+    #     services: Optional[List[str]] = None,
+    #     limit: int = 5
+    # ) -> List[Dict[str, Any]]:
+    #     """获取相关专家QA记忆"""
+    #     return await AgentMemoryMixin.retrieve_relevant_expert_qa_memories(
+    #         query=current_query,
+    #         application_id=self.application_id,
+    #         expert_id=expert_id,
+    #         tags=tags,
+    #         services=services,
+    #         limit=limit
+    #     )

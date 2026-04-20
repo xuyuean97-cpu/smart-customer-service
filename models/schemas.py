@@ -1,4 +1,4 @@
-﻿from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, Dict, Any, Union, List
 
 class SummaryRequest(BaseModel):

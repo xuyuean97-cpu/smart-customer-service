@@ -101,7 +101,7 @@
                 <h2>API 使用方式</h2>
                 
                 <h3>1. 底层调用 (memory_manager)</h3>
-                <pre><code class="language-python">from agents.airport_service.context_engineering.memory_manager import memory_manager
+                <pre><code class="language-python">from agents.ecommerce_service.context_engineering.memory_manager import memory_manager
 
 results = await memory_manager.get_smart_filtered_memories(
     query="机场餐厅推荐",
@@ -116,7 +116,7 @@ results = await memory_manager.get_smart_filtered_memories(
 )</code></pre>
 
                 <h3>2. 智能体集成层调用</h3>
-                <pre><code class="language-python">from agents.airport_service.context_engineering.agent_memory import AgentMemoryMixin
+                <pre><code class="language-python">from agents.ecommerce_service.context_engineering.agent_memory import AgentMemoryMixin
 
 smart_memories = await AgentMemoryMixin.retrieve_smart_filtered_memories(
     user_id="user123",

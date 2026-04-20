@@ -11,7 +11,7 @@ CONFIG = {
     # 应用配置
     "app": {
         "title": "智能客户服务系统",
-        "description": "智能机场客服API",
+        "description": "智能电商客服API",
         "version": "1.0.0",
         "cors_origins": ["*"],
         "host": "0.0.0.0",
@@ -31,6 +31,6 @@ CONFIG = {
     },
     # 图配置
     "graph": {
-        "name": "airport_service_graph"
+        "name": "ecommerce_service_graph"
     }
 }
