@@ -16,12 +16,12 @@ target_collection_name = "conversation_memory"
 try:
     # 获取目标集合
     collection = client.get_collection(name=target_collection_name)
-    
+
     # 3.1 查看集合基本信息
     print(f"\n=== 集合 {target_collection_name} 基本信息 ===")
     print(f"数据总条数: {collection.count()}")
     print(f"集合元数据: {collection.metadata}")
-    
+
     # 3.2 查看所有数据（关键修复：去掉include中的ids）
     print(f"\n=== 集合 {target_collection_name} 所有数据 ===")
     all_data = collection.get(
@@ -30,10 +30,10 @@ try:
         # 核心修复：include中移除ids（ids默认返回，无需指定）
         include=["metadatas", "documents", "embeddings"]
     )
-    
+
     # 遍历打印每条数据（ids是默认返回的，直接读取即可）
     for idx, (id_, doc, meta, embedding) in enumerate(
-        zip(all_data["ids"], all_data["documents"], all_data["metadatas"], all_data["embeddings"])
+        zip(all_data["ids"], all_data["documents"], all_data["metadatas"], all_data["embeddings"], strict=False)
     ):
         print(f"\n【第{idx+1}条数据】")
         print(f"ID: {id_}")
@@ -44,7 +44,7 @@ try:
         if embedding:
             print(f"嵌入向量（前5维）: {embedding[:5]}, 向量维度: {len(embedding)}")
         else:
-            print(f"嵌入向量: 无")
+            print("嵌入向量: 无")
 
 except Exception as e:
     print(f"\n错误详情：{type(e).__name__} - {e}")

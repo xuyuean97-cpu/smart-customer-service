@@ -35,7 +35,7 @@
     <header class="doc-header">
         <div class="container">
             <h1 class="doc-title">用户画像系统</h1>
-            <p class="doc-subtitle">三步走战略，从实时会话分析到长期行为洞察，为机场运营提供全方位的用户理解和业务优化支持</p>
+            <p class="doc-subtitle">三步走战略，从实时会话分析到长期行为洞察，为平台运营提供全方位的用户理解和业务优化支持</p>
         </div>
     </header>
 
@@ -43,7 +43,7 @@
         <div class="container">
             <section id="overview">
                 <h2>系统概述</h2>
-                <p>基于大模型的智能客服系统用户画像系统，采用三步走战略，从实时会话分析到长期行为洞察，为机场运营提供全方位的用户理解和业务优化支持。</p>
+                <p>基于大模型的智能客服系统用户画像系统，采用三步走战略，从实时会话分析到长期行为洞察，为平台运营提供全方位的用户理解和业务优化支持。</p>
             </section>
 
             <section id="strategy">
@@ -109,8 +109,8 @@
                     <div class="quick-start-item">
                         <h4>基础标签</h4>
                         <ul>
-                            <li><strong>旅客类型</strong>: 商旅人士、休闲旅客、首次乘机、常旅客、家庭出行、学生出行、中转旅客</li>
-                            <li><strong>用户角色</strong>: 乘机人本人、亲友代问、接送机人员、代理人、机场工作人员</li>
+                            <li><strong>用户类型</strong>: 商旅人士、休闲用户、首次乘机、常用户、家庭出行、学生出行、中转用户</li>
+                            <li><strong>用户角色</strong>: 乘机人本人、亲友代问、接送机人员、代理人、平台工作人员</li>
                             <li><strong>消费能力</strong>: 高价值客户、中等消费、价格敏感、未知</li>
                         </ul>
                     </div>
@@ -239,7 +239,7 @@ scheduler.start()</code></pre>
     session_id="session_456", 
     message_data={
         "role": "user",
-        "content": "我想查询航班信息",
+        "content": "我想查询订单信息",
         "timestamp": "2024-01-01T10:00:00",
         "technical_context": {
             "device": "mobile",
@@ -321,8 +321,8 @@ deep_result = await api.manual_deep_analysis("user_123", days=30)</code></pre>
                     <div class="arch-layer">
                         <h4>用户分群统计</h4>
                         <div class="arch-components">
-                            <span class="component">高价值商旅客户: 14.4%，平均满意度89%</span>
-                            <span class="component">常旅客: 25.6%，忠诚度分数0.72</span>
+                            <span class="component">高价值商用户户: 14.4%，平均满意度89%</span>
+                            <span class="component">常用户: 25.6%，忠诚度分数0.72</span>
                             <span class="component">首次用户: 33.6%，增长潜力85%</span>
                             <span class="component">家庭客户: 12.0%，特殊服务使用率高</span>
                             <span class="component">价格敏感用户: 14.4%，需要成本优化策略</span>

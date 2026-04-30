@@ -45,13 +45,7 @@ chatmodel = HzOpenAI(model=custom_model)
 client = OpenAI(api_key="8a70345b54344f495c9ea0d.4xz6BnmSdbQbNJT7", base_url="https://open.bigmodel.cn/api/paas/v4/")
 
 
-from typing import List
 
-from deepeval.test_case import LLMTestCase
-from deepeval.tracing import (
-    observe,
-    update_current_span,
-)
 
 def web_search(query: str) -> str:
     return "Fake search results for: " + query

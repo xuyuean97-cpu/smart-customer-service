@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, v1.0, master]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run ruff check .
+
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: Check all .py files parse
+        run: uv run python -c "import ast,os,sys; errs=[(r,f,e) for r,_,fs in os.walk('.') if '.venv' not in r and '__pycache__' not in r for f in fs if f.endswith('.py') for e in [(lambda p: __import__('ast').parse(open(p,encoding='utf-8').read()))(os.path.join(r,f))] if isinstance(e,Exception)]; [print(f'ERROR {p}: {e}') for p,_,e in errs]; sys.exit(1 if errs else 0)"
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [lint, syntax]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: Run unit tests (no external services required)
+        run: uv run pytest tests/test_schemas.py tests/test_query_transform.py -v

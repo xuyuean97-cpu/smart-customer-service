@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
-from agents.ecommerce_service.state import AirportMainServiceState, TranslationResult
+from agents.ecommerce_service.state import EcommerceMainServiceState, TranslationResult
 from trustcall import create_extractor
 from langchain_core.messages import RemoveMessage,HumanMessage,AIMessage
 from agents.ecommerce_service.core import structed_model
@@ -18,7 +18,7 @@ from agents.ecommerce_service.context_engineering.prompts import business_recomm
 logger = get_logger("agents.business-recommend-nodes.translator")
 bound = create_extractor(structed_model,tools=[TranslationResult])
 
-def remove_message(state:AirportMainServiceState,del_nb = 2):
+def remove_message(state:EcommerceMainServiceState,del_nb = 2):
     """
     删除尾部的几条消息
     """
@@ -32,10 +32,10 @@ def remove_message(state:AirportMainServiceState,del_nb = 2):
         print(f"删除消息失败: {e}")
         return []
 
-async def translate_input(state: AirportMainServiceState, config: RunnableConfig):
+async def translate_input(state: EcommerceMainServiceState, config: RunnableConfig):
     """
     翻译输入节点
-    
+
     Args:
         state: 当前状态对象
         config: 可运行配置
@@ -72,10 +72,10 @@ async def translate_input(state: AirportMainServiceState, config: RunnableConfig
 
 
 
-async def translate_output(state: AirportMainServiceState, config: RunnableConfig):
+async def translate_output(state: EcommerceMainServiceState, config: RunnableConfig):
     """
     翻译输出节点
-    
+
     Args:
         state: 当前状态对象
         config: 可运行配置

@@ -4,16 +4,12 @@ Text2SQL 训练 API
 提供 Text2SQL 模块的训练和数据管理接口
 """
 
-import asyncio
-import json
 import tempfile
 import os
-from pathlib import Path
-from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Response
 from fastapi.responses import JSONResponse
 
-from models import TrainingRequest, TrainingResponse, ClearDataRequest, ClearDataResponse, TrainingDataItem
+from models import TrainingRequest, TrainingResponse, ClearDataRequest, ClearDataResponse
 from text2sql import create_text2sql
 from config.utils import config_manager
 from common.logging import get_logger
@@ -29,13 +25,13 @@ _text2sql_instance = None
 async def get_text2sql_instance():
     """获取或创建text2sql实例"""
     global _text2sql_instance
-    
+
     if _text2sql_instance is None:
         try:
             logger.info("开始初始化text2sql实例")
             # 获取text2sql配置
             text2sql_config = config_manager.get_text2sql_config()
-            
+
             # 检查配置是否完整
             db_config = text2sql_config.get("db", {})
             if not db_config.get("type"):
@@ -43,7 +39,7 @@ async def get_text2sql_instance():
                 if "db" not in text2sql_config:
                     text2sql_config["db"] = {}
                 text2sql_config["db"]["type"] = "postgresql"
-            
+
             # 从环境变量补充缺失的数据库参数
             required_db_params = ["host", "port", "user", "password", "database"]
             for param in required_db_params:
@@ -53,32 +49,32 @@ async def get_text2sql_instance():
                         text2sql_config["db"][param] = os.environ.get(env_var)
                         if param == "port":
                             text2sql_config["db"][param] = int(text2sql_config["db"][param])
-            
+
             _text2sql_instance = await create_text2sql(text2sql_config)
             logger.info("text2sql实例初始化成功")
         except Exception as e:
             logger.error(f"初始化text2sql实例时出错: {str(e)}")
             raise HTTPException(status_code=500, detail=f"初始化text2sql实例失败: {str(e)}")
-    
+
     return _text2sql_instance
 
 @router.post("/train", response_model=TrainingResponse)
 async def train_text2sql(training_request: TrainingRequest, request: Request, response: Response):
     """
     训练Text2SQL模型
-    
+
     Args:
         training_request: 训练请求，包含训练数据和配置
-        
+
     Returns:
         训练结果
     """
     logger.info(f"收到训练请求 - 数据条数: {len(training_request.training_data)}, 清除现有数据: {training_request.clear_existing}")
-    
+
     try:
         # 获取text2sql实例
         smart_sql = await get_text2sql_instance()
-        
+
         # 清除现有数据（如果需要）
         if training_request.clear_existing:
             logger.warning("正在清除现有训练数据...")
@@ -90,32 +86,32 @@ async def train_text2sql(training_request: TrainingRequest, request: Request, re
                         logger.info(f"已清除集合: {collection}")
                     except Exception as e:
                         logger.warning(f"清除集合{collection}时出错: {str(e)}")
-        
+
         # 准备训练数据
         training_data = []
         for item in training_request.training_data:
             data_dict = {}
-            
+
             # 添加DDL数据
             if item.ddl:
                 data_dict['ddl'] = item.ddl
                 if item.description:
                     data_dict['description'] = item.description
-            
+
             # 添加文档数据
             if item.documentation:
                 data_dict['documentation'] = item.documentation
-            
+
             # 添加问答数据
             if item.question and item.sql:
                 data_dict['question'] = item.question
                 data_dict['sql'] = item.sql
                 if item.tags:
                     data_dict['tags'] = item.tags
-            
+
             if data_dict:
                 training_data.append(data_dict)
-        
+
         if not training_data:
             logger.warning("没有有效的训练数据")
             return TrainingResponse(
@@ -123,17 +119,17 @@ async def train_text2sql(training_request: TrainingRequest, request: Request, re
                 message="没有有效的训练数据",
                 total_count=0
             )
-        
+
         # 执行训练
         logger.info(f"开始训练，共有{len(training_data)}条数据...")
         result = await smart_sql.train(training_data)
-        
+
         # 统计训练结果
         success_count = len(result.get('success', []))
         failed_count = len(result.get('failed', []))
-        
+
         logger.info(f"训练完成: {success_count}条成功, {failed_count}条失败")
-        
+
         return TrainingResponse(
             success=True,
             message=f"训练完成: {success_count}条成功, {failed_count}条失败",
@@ -141,7 +137,7 @@ async def train_text2sql(training_request: TrainingRequest, request: Request, re
             failed_count=failed_count,
             total_count=len(training_data)
         )
-        
+
     except Exception as e:
         logger.error(f"训练过程中出错: {str(e)}")
         raise HTTPException(status_code=500, detail=f"训练失败: {str(e)}")
@@ -150,23 +146,23 @@ async def train_text2sql(training_request: TrainingRequest, request: Request, re
 async def clear_training_data(clear_request: ClearDataRequest, request: Request, response: Response):
     """
     清除训练数据
-    
+
     Args:
         clear_request: 清除请求，指定要清除的集合
-        
+
     Returns:
         清除结果
     """
     logger.info(f"收到清除数据请求 - 集合: {clear_request.collections}")
-    
+
     try:
         # 获取text2sql实例
         smart_sql = await get_text2sql_instance()
-        
+
         # 确定要清除的集合
         collections_to_clear = clear_request.collections or ["sql-sql", "sql-documentation", "sql-ddl"]
         cleared_collections = []
-        
+
         if hasattr(smart_sql.vector_store, 'remove_collection'):
             for collection in collections_to_clear:
                 try:
@@ -181,7 +177,7 @@ async def clear_training_data(clear_request: ClearDataRequest, request: Request,
                 success=False,
                 message="向量存储不支持清除集合操作"
             )
-        
+
         return ClearDataResponse(
             success=True,
             message=f"成功清除{len(cleared_collections)}个集合",
@@ -222,7 +218,7 @@ async def load_excel_training_data(file_path: str, smart_sql):
         try:
             ddl_df = pd.read_excel(file_path, sheet_name='ddl')
             if 'ddl' in ddl_df.columns:
-                logger.info(f"从Excel文件加载DDL数据...")
+                logger.info("从Excel文件加载DDL数据...")
                 for _, row in ddl_df.iterrows():
                     ddl = row.get('ddl')
                     if ddl and len(str(ddl).strip()) > 0:
@@ -241,7 +237,7 @@ async def load_excel_training_data(file_path: str, smart_sql):
         try:
             docs_df = pd.read_excel(file_path, sheet_name='documentation')
             if 'documentation' in docs_df.columns:
-                logger.info(f"从Excel文件加载文档数据...")
+                logger.info("从Excel文件加载文档数据...")
                 for doc in docs_df['documentation'].dropna():
                     if doc and len(str(doc).strip()) > 0:
                         training_data.append({'documentation': str(doc)})
@@ -253,7 +249,7 @@ async def load_excel_training_data(file_path: str, smart_sql):
         try:
             qa_df = pd.read_excel(file_path, sheet_name='qa')
             if 'question' in qa_df.columns and 'sql' in qa_df.columns:
-                logger.info(f"从Excel文件加载问题和SQL数据...")
+                logger.info("从Excel文件加载问题和SQL数据...")
                 # 删除任一列为空的行
                 qa_df = qa_df.dropna(subset=['question', 'sql'])
                 for _, row in qa_df.iterrows():

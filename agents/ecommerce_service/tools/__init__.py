@@ -12,8 +12,8 @@ logger_config = get_logger_config("agents")
 setup_logger(**logger_config)
 logger = get_logger("agents.tools")
 
-from .airport import product_info_query2docs,product_policy_query2docs_main
-from .flight import order_query2docs,get_text2sql_instance
+from .product_info import product_info_query2docs,product_policy_query2docs_main
+from .order_logistics import order_query2docs,get_text2sql_instance
 from .business import wheelchair_rental
 
 logger.info("工具集模块初始化完成")

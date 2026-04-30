@@ -13,21 +13,21 @@
 # async def check_data():
 #     print("=" * 50)
 #     print(f"🕵️‍♂️ 正在尝试连接数据库: {DB_CONFIG['database']} @ {DB_CONFIG['host']}...")
-    
+
 #     conn = None
 #     try:
 #         # 1. 尝试连接
 #         conn = await asyncpg.connect(**DB_CONFIG)
 #         print("✅ 连接成功！")
-        
+
 #         # 2. 检查当前库里到底有什么表
 #         print("\n[检查 1] 查看当前库中的表:")
 #         tables = await conn.fetch("""
-#             SELECT table_name 
-#             FROM information_schema.tables 
+#             SELECT table_name
+#             FROM information_schema.tables
 #             WHERE table_schema = 'public'
 #         """)
-        
+
 #         if not tables:
 #             print("❌ 警告：当前库 'test' 里是空的！没有任何表！")
 #             print("   -> 请检查你的 Navicat/DBeaver 是否把数据建在 'postgres' 库里了？")
@@ -35,7 +35,7 @@
 
 #         table_names = [t['table_name'] for t in tables]
 #         print(f"   发现表: {table_names}")
-        
+
 #         # 3. 检查 orders 表是否存在
 #         if 'orders' in table_names:
 #             # 4. 检查 orders 表里的具体数据
@@ -46,7 +46,7 @@
 #             else:
 #                 for row in rows:
 #                     print(f"   - {dict(row)}")
-            
+
 #             # 5. 精确查找那个报错的订单号
 #             target_id = '202310240001'
 #             print(f"\n[检查 3] 寻找指定订单: {target_id}")
@@ -77,11 +77,10 @@
 
 import chromadb
 import json
-import os
 
 # --- 根据你的报错信息更新了IP ---
 # 这里的 IP 是你报错日志中显示的 8.162.3.14
-CONV_DB_HOST = "8.162.3.14" 
+CONV_DB_HOST = "8.162.3.14"
 CONV_DB_PORT = 8000
 CONV_COLLECTION = "conversation_memory"
 
@@ -94,7 +93,7 @@ def dump_collection(host, port, collection_name, output_file):
     try:
         # 连接数据库
         client = chromadb.HttpClient(host=host, port=port)
-        
+
         # 检查集合是否存在
         try:
             # 尝试直接获取，如果不存在会报错或返回空
@@ -102,12 +101,12 @@ def dump_collection(host, port, collection_name, output_file):
         except Exception:
             print(f"⚠️ 警告: 无法找到集合 {collection_name}，跳过。")
             return
-        
+
         # --- 核心修改在这里 ---
         # 1. include 参数去掉 "ids"
         # 2. limit=None 表示获取所有数据
         all_data = collection.get(limit=None, include=["documents", "metadatas"])
-        
+
         ids = all_data.get('ids', [])
         count = len(ids)
         print(f"✅ 成功获取 {count} 条记录。")
@@ -138,6 +137,6 @@ def dump_collection(host, port, collection_name, output_file):
 if __name__ == "__main__":
     # 导出对话记忆
     dump_collection(CONV_DB_HOST, CONV_DB_PORT, CONV_COLLECTION, "all_conversations.json")
-    
+
     # 导出画像记忆
     dump_collection(PROFILE_DB_HOST, PROFILE_DB_PORT, PROFILE_COLLECTION, "all_profiles.json")

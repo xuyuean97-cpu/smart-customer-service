@@ -53,14 +53,14 @@ def replace_outer_single_quotes(lst):
 #     translator_result = state.get("translator_result")
 #     language = translator_result.language if translator_result else "中文"
 #     messages = filter_messages_for_llm(state, 5)
-    
+
 #     # 执行知识检索
 #     retrieval_result = await product_info_query2docs(user_query, messages)
-    
+
 #     # 使用统一的检索结果
 #     context = retrieval_result.content if retrieval_result else ""
 #     logger.info(f"问题推荐使用检索结果，来源: {retrieval_result.source if retrieval_result else 'none'}")
-    
+
 #     question_recommend_chain = question_recommend_prompt | extractor
 #     res = await question_recommend_chain.ainvoke({
 #         "user_query": user_query,
@@ -68,14 +68,14 @@ def replace_outer_single_quotes(lst):
 #         "messages": messages,
 #         "language": language
 #     })
-    
+
 #     # 获取并清洗问题列表
 #     questions_list = replace_outer_single_quotes(res["responses"][0].question)
 
 #     return {
 #         # ✅ 正确做法：将推荐问题放到专属字段中，坚决不碰 messages
-#         "recommended_questions": questions_list, 
-        
+#         "recommended_questions": questions_list,
+
 #         "user_query": None,
 #         "retrieval_result": None  # 清空检索结果
 #     }
@@ -101,14 +101,14 @@ async def provide_question_recommend(state: QuestionRecommendState, config: Runn
     translator_result = state.get("translator_result")
     language = translator_result.language if translator_result else "中文"
     messages = filter_messages_for_llm(state, 5)
-    
+
     # 执行知识检索
     retrieval_result = await product_info_query2docs(user_query, messages)
-    
+
     # 使用统一的检索结果
     context = retrieval_result.content if retrieval_result else ""
     logger.info(f"问题推荐使用检索结果，来源: {retrieval_result.source if retrieval_result else 'none'}")
-    
+
     question_recommend_chain = question_recommend_prompt | extractor
     res = await question_recommend_chain.ainvoke({
         "user_query": user_query,

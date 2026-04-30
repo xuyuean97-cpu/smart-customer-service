@@ -1,4 +1,3 @@
-import asyncio
 import aiohttp
 from common.logging import get_logger
 
@@ -33,7 +32,7 @@ logger = get_logger("agents.utils.rerank")
 #             }
 #             if api_key:
 #                 headers['Authorization'] = f'Bearer {api_key}'
-            
+
 #             async with session.post(reranker_address, json=payload, headers=headers) as response:
 #                 if response.status == 200:
 #                     result_data = await response.json()
@@ -58,10 +57,10 @@ logger = get_logger("agents.utils.rerank")
 #                     error_text = await response.text()
 #                     logger.error(f"错误详情: {error_text}")
 #                     return results[:top_k], 0.0
-                    
+
 #     except Exception as e:
 #         logger.error(f"重排序过程发生错误: {str(e)}")
-#         return results[:top_k], 0.0 
+#         return results[:top_k], 0.0
 async def rerank_results(results, user_question, reranker_model=None, reranker_address=None, api_key=None, top_k=5):
     """
     异步重排序函数，使用 HTTP API 调用重排序模型 (适配阿里云 DashScope)
@@ -74,7 +73,7 @@ async def rerank_results(results, user_question, reranker_model=None, reranker_a
 
     # 构建文档列表 (保持原有逻辑，截取前500字符)
     documents = [item['content'].strip()[:500] for item in results]
-    
+
     # --- 核心修改 1: 构造符合 DashScope 要求的 payload ---
     payload = {
         "model": reranker_model,
@@ -84,7 +83,7 @@ async def rerank_results(results, user_question, reranker_model=None, reranker_a
         },
         "parameters": {
 
-            
+
             "return_documents": False, # 不需要API返回文档文本，我们要自己根据index映射
             "top_n": top_k
         }
@@ -97,7 +96,7 @@ async def rerank_results(results, user_question, reranker_model=None, reranker_a
                 'Content-Type': 'application/json',
                 'Authorization': f'Bearer {api_key}'
             }
-            
+
             async with session.post(reranker_address, json=payload, headers=headers) as response:
                 if response.status == 200:
                     result_data = await response.json()
@@ -111,7 +110,7 @@ async def rerank_results(results, user_question, reranker_model=None, reranker_a
                     elif 'results' in result_data:
                         # 兼容部分非标准返回
                         rerank_data = result_data['results']
-                    
+
                     if rerank_data:
                         # 根据 index 重新组装结果
                         reranked_results = []
@@ -120,10 +119,10 @@ async def rerank_results(results, user_question, reranker_model=None, reranker_a
                             score = item.get("relevance_score")
                             if idx is not None and idx < len(documents):
                                 reranked_results.append({
-                                    "content": documents[idx], 
+                                    "content": documents[idx],
                                     "similarity": score,
                                     # 如果原始 results 里有 metadata，最好也带上
-                                    # "metadata": results[idx].get('metadata', {}) 
+                                    # "metadata": results[idx].get('metadata', {})
                                 })
 
                         if reranked_results:
@@ -139,7 +138,7 @@ async def rerank_results(results, user_question, reranker_model=None, reranker_a
                     error_text = await response.text()
                     logger.error(f"错误详情: {error_text}")
                     return results[:top_k], 0.0
-                    
+
     except Exception as e:
         logger.error(f"重排序过程发生错误: {str(e)}")
         # 发生异常时返回原始结果，避免系统中断

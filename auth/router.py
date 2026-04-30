@@ -1,7 +1,7 @@
 # auth/router.py
 import random
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from auth.sms import send_ali_sms
 from . import schemas, redis_client, models, security
@@ -22,18 +22,18 @@ async def send_sms(req: schemas.SmsRequest):
 
     # 2. 生成随机码
     code = str(random.randint(100000, 999999))
-    
+
     # 3. 存入 Redis (验证码本身)
     redis_client.set_sms_code(req.phone, code)
-    
+
     # 4. 发送真实短信
     # 如果你是开发环境不想浪费短信条数，可以在这里加个 if 判断跳过
     is_sent = await send_ali_sms(req.phone, code)
-    
+
     if is_sent:
         # 5. 【新增】发送成功后，写入冷却标记 (60秒)
         redis_client.set_sms_cooldown(req.phone, 60)
-        
+
         return {"code": 200, "message": "短信发送成功", "debug_code": code}
     else:
         # 发送失败通常不需要冷却，允许用户立即重试，或者设置一个较短的冷却(如5秒)防止死循环
@@ -48,11 +48,11 @@ async def register(req: schemas.RegisterRequest, db: Session = Depends(get_db)):
     cached_code = redis_client.get_sms_code(req.phone)
     if not cached_code or cached_code != req.code:
         raise HTTPException(status_code=400, detail="验证码错误或已失效")
-    
+
     # B. 检查手机号是否已存在
     if db.query(models.User).filter(models.User.phone == req.phone).first():
         raise HTTPException(status_code=400, detail="该手机号已注册")
-    
+
     # C. 创建用户
     print("password repr:", repr(req.password))
     print("password bytes len:", len(req.password.encode("utf-8")))
@@ -66,10 +66,10 @@ async def register(req: schemas.RegisterRequest, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
+
     # D. 注册成功后销毁验证码
     redis_client.delete_sms_code(req.phone)
-    
+
     return {"code": 200, "message": "注册成功", "user_id": new_user.id}
 
 @router.post("/login", response_model=schemas.TokenResponse, summary="登录")
@@ -134,18 +134,18 @@ async def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depend
     cached_code = redis_client.get_sms_code(req.phone)
     if not cached_code or cached_code != req.code:
         raise HTTPException(status_code=400, detail="验证码错误或失效")
-        
+
     # B. 查找用户
     user = db.query(models.User).filter(models.User.phone == req.phone).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
-        
+
     # C. 更新密码
     user.hashed_password = security.get_password_hash(req.new_password)
     db.commit()
-    
+
     redis_client.delete_sms_code(req.phone)
-    
+
     return {"code": 200, "message": "密码重置成功，请重新登录"}
 
 @router.post("/change-password", summary="修改密码（需登录）")

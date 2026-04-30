@@ -177,3 +177,5 @@ cython_debug/
 .env
 .env.*
 !.env.example
+admin/node_modules/
+admin/dist/

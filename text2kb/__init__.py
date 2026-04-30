@@ -22,4 +22,4 @@ except ImportError:
 
 __all__ = [
     'retrieve_from_kb'
-] 
+]

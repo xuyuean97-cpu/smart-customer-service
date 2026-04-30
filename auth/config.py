@@ -27,7 +27,7 @@ class Settings:
     ALI_SMS_TEMPLATE_ID = sms.get("template_id", "CST_ptdie100")
     # --- Database (自动构建连接 URL) ---
     db = raw_config.get("database", {})
-    
+
     # 构建 PostgreSQL 连接串
     if db.get("type") == "postgresql":
         # 密码特殊字符转义

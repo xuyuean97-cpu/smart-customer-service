@@ -51,29 +51,29 @@ class APIResponse(BaseModel):
 def process_images(images: List[ImageData]) -> Dict[str, Any]:
     """
     处理图片数据，生成data URL格式
-    
+
     Args:
         images: 图片数据列表
-        
+
     Returns:
         image_urls: 图片data URL列表
     """
     if not images:
         return []
-    
+
     image_urls = []
-    
+
     for image_data in images:
         try:
             image_type = image_data.content_type.split('/')[-1] if '/' in image_data.content_type else 'jpeg'
             data_url = f"data:image/{image_type};base64,{image_data.data}"
             # 保存URL和完整信息
             image_urls.append(data_url)
-            
+
         except Exception as e:
             logger.error(f"处理图片失败: {str(e)}")
             continue
-    
+
     return image_urls
 
 
@@ -83,10 +83,10 @@ async def add_qa_pair(qa_pair: QAPair, request: Request):
     try:
         # 确保记忆管理器已初始化
         await memory_manager.initialize()
-        
+
         # 处理图片数据
         image_result = process_images(qa_pair.images or [])
-        
+
         # 1. 先添加到专家库
         expert_memory_id = await memory_manager.add_expert_qa(
             question=qa_pair.question,
@@ -125,12 +125,11 @@ async def add_qa_pairs_batch(qa_batch: QAPairBatch, request: Request):
     try:
         # 确保记忆管理器已初始化
         await memory_manager.initialize()
-        
+
         expert_memory_ids = []
-        redis_qa_ids = []
         failed_count = 0
         all_processed_images = []
-        
+
         # 1. 先批量添加到专家库
         for qa_pair in qa_batch.qa_pairs:
             try:
@@ -155,9 +154,9 @@ async def add_qa_pairs_batch(qa_batch: QAPairBatch, request: Request):
                 failed_count += 1
                 expert_memory_ids.append(None)
                 all_processed_images.append([])
-        
+
         success_count = len(qa_batch.qa_pairs) - failed_count
-        
+
         return APIResponse(
             success=True,
             message=f"批量添加完成，成功{success_count}个，失败{failed_count}个QA对",
@@ -178,12 +177,12 @@ async def get_all_qa():
     try:
         # 确保记忆管理器已初始化
         await memory_manager.initialize()
-        
+
         # 获取所有专家QA
         expert_results = await memory_manager.get_expert_qa_list(
             limit=100000
         )
-        
+
         if expert_results:
             # 转换为标准的QAResponse格式
             qa_list = []
@@ -194,7 +193,7 @@ async def get_all_qa():
                 if images_value and images_value.strip():
                     # 如果有图片data URL，按||分隔符分割解析多个图片
                     images_list = [img.strip() for img in images_value.split('||') if img.strip()]
-                
+
                 qa_response = QAResponse(
                     id=expert_qa.get('memory_id', ''),
                     question=expert_qa.get('question', ''),
@@ -209,7 +208,7 @@ async def get_all_qa():
                     created_at=0  # 专家QA不使用时间戳
                 ).model_dump()
                 qa_list.append(qa_response)
-            
+
             return APIResponse(
                 success=True,
                 message=f"获取所有QA对成功，共{len(qa_list)}条",
@@ -221,7 +220,7 @@ async def get_all_qa():
                 message="暂无QA对",
                 data=[]
             )
-            
+
     except Exception as e:
         logger.error(f"获取所有QA对失败: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -236,35 +235,35 @@ async def delete_qa_pair(request: DeleteQARequest):
     try:
         # 确保记忆管理器已初始化
         await memory_manager.initialize()
-        
+
         expert_deleted = False
         redis_deleted = False
-        
+
         # 1. 从专家库删除（使用memory_id）
         try:
             expert_deleted = await memory_manager.delete_expert_qa(request.id)
         except Exception as expert_error:
             logger.error(f"从专家库删除失败: {str(expert_error)}")
-        
+
         except Exception as redis_error:
             logger.error(f"从Redis删除失败: {str(redis_error)}")
-        
+
         # 判断删除结果
         if not expert_deleted and not redis_deleted:
             raise HTTPException(status_code=404, detail="QA对删除失败，可能不存在")
-        
+
         result_data = {
             "expert_memory_id": request.id,
             "expert_deleted": expert_deleted,
             "redis_deleted": redis_deleted
         }
-        
+
         return APIResponse(
             success=True,
             message=f"QA对删除完成，专家库{'成功' if expert_deleted else '失败'}，Redis{'成功' if redis_deleted else '失败'}",
             data=result_data
         )
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -277,7 +276,7 @@ async def get_qa_count():
     try:
         # 确保记忆管理器已初始化
         await memory_manager.initialize()
-        
+
         # 1. 统计专家库QA数量
         expert_count = 0
         try:
@@ -288,7 +287,7 @@ async def get_qa_count():
             expert_count = len(expert_results)
         except Exception as expert_error:
             logger.error(f"统计专家库QA失败: {str(expert_error)}")
-                
+
         return APIResponse(
             success=True,
             message="获取QA对总数成功",
@@ -375,17 +374,17 @@ async def add_qa_with_file_upload(
             for file in files:
                 if not file.content_type.startswith('image/'):
                     continue  # 跳过非图片文件
-                
+
                 file_content = await file.read()
                 base64_data = base64.b64encode(file_content).decode('utf-8')
-                
+
                 image_data = ImageData(
                     filename=file.filename,
                     content_type=file.content_type,
                     data=base64_data
                 )
                 image_data_list.append(image_data)
-        
+
         # 构建QAPair对象
         qa_pair = QAPair(
             question=question,
@@ -398,10 +397,10 @@ async def add_qa_with_file_upload(
                 "application_id": application_id
             }
         )
-        
+
         # 调用现有的添加QA对功能
         return await add_qa_pair(qa_pair, request)
-        
+
     except Exception as e:
         logger.error(f"添加QA对（文件上传）失败: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

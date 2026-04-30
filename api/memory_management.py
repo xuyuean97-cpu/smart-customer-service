@@ -2,10 +2,9 @@
 记忆管理API接口
 包含对话历史查看、专家审核、用户画像等功能
 """
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from agents.ecommerce_service.context_engineering.memory_manager import memory_manager
@@ -60,7 +59,7 @@ class ExpertReviewRequest(BaseModel):
 class BatchExpertReviewRequest(BaseModel):
     """批量专家审核请求"""
     review_items: List[ExpertReviewRequest] = Field(..., description="审核项目列表", max_items=1000)
-    
+
 
 class UserProfileResponse(BaseModel):
     """用户画像响应"""
@@ -98,7 +97,7 @@ async def get_conversation_history(
     获取对话历史 - 支持多种查询条件组合
     """
     logger.info(f"获取对话历史: user_id={user_id}, agent_id={agent_id}, run_id={run_id}")
-    
+
     try:
         # 这样更符合前端的预期行为
         if not any([user_id, agent_id, run_id, application_id,start_date, end_date, expert_verified is not None]):
@@ -121,11 +120,11 @@ async def get_conversation_history(
                     }
                 }
             )
-        
+
         # 解析日期
         start_datetime = None
         end_datetime = None
-        
+
         if start_date:
             try:
                 start_datetime = datetime.strptime(start_date, "%Y-%m-%d")
@@ -134,7 +133,7 @@ async def get_conversation_history(
                 start_datetime = start_datetime.replace(tzinfo=timezone.utc)
             except ValueError:
                 raise HTTPException(status_code=400, detail="开始日期格式错误，请使用 YYYY-MM-DD 格式")
-        
+
         if end_date:
             try:
                 end_datetime = datetime.strptime(end_date, "%Y-%m-%d")
@@ -144,12 +143,12 @@ async def get_conversation_history(
                 end_datetime = end_datetime.replace(tzinfo=timezone.utc)
             except ValueError:
                 raise HTTPException(status_code=400, detail="结束日期格式错误，请使用 YYYY-MM-DD 格式")
-        
+
         # 获取对话历史
         conversations = await memory_manager.get_conversation_history(
             user_id=user_id,
-            agent_id=agent_id, 
-            run_id=run_id,   
+            agent_id=agent_id,
+            run_id=run_id,
             application_id=application_id,
             expert_verified=expert_verified,
             limit=limit,
@@ -175,7 +174,7 @@ async def get_conversation_history(
                 }
             }
         )
-        
+
     except Exception as e:
         logger.error(f"获取对话历史失败: {e}", exc_info=True)
         return ConversationHistoryResponse(
@@ -192,7 +191,7 @@ async def expert_review_conversation(request: ExpertReviewRequest):
     支持修改回答内容、质量评分、审核备注等
     """
     logger.info(f"专家审核对话: memory_id={request.memory_id}, approved={request.expert_approved}")
-    
+
     try:
         success = await memory_manager.expert_review_conversation(
             memory_id=request.memory_id,
@@ -202,7 +201,7 @@ async def expert_review_conversation(request: ExpertReviewRequest):
             corrected_response=request.corrected_response,
             expert_id=request.expert_id
         )
-        
+
         if success:
             return {
                 "ret_code": "000000",
@@ -221,7 +220,7 @@ async def expert_review_conversation(request: ExpertReviewRequest):
                 "ret_msg": "专家审核失败",
                 "data": {"memory_id": request.memory_id}
             }
-            
+
     except Exception as e:
         logger.error(f"专家审核失败: {e}", exc_info=True)
         return {
@@ -238,7 +237,7 @@ async def batch_expert_review(request: BatchExpertReviewRequest):
     支持一次性审核最多1000个对话记录
     """
     logger.info(f"批量专家审核: {len(request.review_items)} 个项目")
-    
+
     try:
         # 转换为内部格式
         review_items = []
@@ -252,15 +251,15 @@ async def batch_expert_review(request: BatchExpertReviewRequest):
                 "review_notes": item.review_notes,
                 "expert_id": item.expert_id
             })
-        
+
         result = await memory_manager.batch_expert_review(review_items)
-        
+
         return {
             "ret_code": "000000",
             "ret_msg": "批量专家审核完成",
             "data": result
         }
-        
+
     except Exception as e:
         logger.error(f"批量专家审核失败: {e}", exc_info=True)
         return {
@@ -275,10 +274,10 @@ async def get_user_profile(user_id: str):
     获取用户画像
     """
     logger.info(f"获取用户画像: user_id={user_id}")
-    
+
     try:
         user_profile = await memory_manager.get_user_profile(user_id)
-        
+
         if user_profile:
             return UserProfileResponse(
                 ret_code="000000",
@@ -299,7 +298,7 @@ async def get_user_profile(user_id: str):
                     "has_profile": False
                 }
             )
-    
+
     except Exception as e:
         logger.error(f": {e}", exc_info=True)
         return UserProfileResponse(
@@ -316,10 +315,10 @@ async def extract_user_profile(user_id: str):
     从对话历史中分析并生成用户画像
     """
     logger.info(f"提取用户画像: user_id={user_id}")
-    
+
     try:
         user_profile = await memory_manager.extract_user_profile(user_id)
-        
+
         if user_profile:
             return UserProfileResponse(
                 ret_code="000000",
@@ -340,7 +339,7 @@ async def extract_user_profile(user_id: str):
                     "extraction_completed": False
                 }
             )
-    
+
     except Exception as e:
         logger.error(f"提取用户画像失败: {e}", exc_info=True)
         return UserProfileResponse(
@@ -365,7 +364,7 @@ async def search_conversations(
     支持多重筛选条件
     """
     logger.info(f"相似度搜索对话: query={query}, filters={locals()}")
-    
+
     try:
         results = await memory_manager.search_conversations(
             query=query,
@@ -376,7 +375,7 @@ async def search_conversations(
             min_quality_score=min_quality_score,
             limit=limit
         )
-        
+
         return {
             "ret_code": "000000",
             "ret_msg": "操作成功",
@@ -394,7 +393,7 @@ async def search_conversations(
                 }
             }
         }
-        
+
     except Exception as e:
         logger.error(f"相似度搜索失败: {e}", exc_info=True)
         return {
@@ -411,14 +410,14 @@ async def search_expert_examples(request: ExampleSearchRequest):
     用于增强LLM的prompt
     """
     logger.info(f"搜索优质QA示例: query={request.query}")
-    
+
     try:
         examples = await memory_manager.get_expert_approved_examples(
             query=request.query,
             limit=request.limit,
             min_quality_score=request.min_quality_score
         )
-        
+
         return {
             "ret_code": "000000",
             "ret_msg": "操作成功",
@@ -432,7 +431,7 @@ async def search_expert_examples(request: ExampleSearchRequest):
                 }
             }
         }
-        
+
     except Exception as e:
         logger.error(f"搜索优质QA示例失败: {e}", exc_info=True)
         return {
@@ -460,18 +459,18 @@ class SmartFilterRequest(BaseModel):
 async def smart_filter_memories(request: SmartFilterRequest):
     """
     智能记忆筛选 - 基于多因子综合评分
-    
+
     根据向量相似度、时间遗忘因子、专家评分等多个因素进行加权排序，
     返回最符合条件的TopK记忆
     """
     logger.info(f"智能记忆筛选: query={request.query}, weights=[sim:{request.similarity_weight}, time:{request.time_weight}, quality:{request.quality_weight}]")
-    
+
     try:
         # 验证权重和
         total_weight = request.similarity_weight + request.time_weight + request.quality_weight
         if abs(total_weight - 1.0) > 0.1:  # 允许10%的误差
             logger.warning(f"权重和不等于1.0: {total_weight}, 系统将自动归一化")
-        
+
         results = await memory_manager.get_smart_filtered_memories(
             query=request.query,
             user_id=request.user_id,
@@ -484,7 +483,7 @@ async def smart_filter_memories(request: SmartFilterRequest):
             quality_weight=request.quality_weight,
             time_decay_days=request.time_decay_days
         )
-        
+
         # 统计信息
         stats = {
             "total_count": len(results),
@@ -493,13 +492,13 @@ async def smart_filter_memories(request: SmartFilterRequest):
             "avg_time_score": 0.0,
             "avg_quality_score": 0.0,
         }
-        
+
         if results:
             stats["avg_composite_score"] = sum(r['composite_score'] for r in results) / len(results)
             stats["avg_similarity_score"] = sum(r['similarity_score'] for r in results) / len(results)
             stats["avg_time_score"] = sum(r['time_score'] for r in results) / len(results)
             stats["avg_quality_score"] = sum(r['quality_score'] for r in results) / len(results)
-        
+
         return {
             "ret_code": "000000",
             "ret_msg": "智能筛选成功",
@@ -522,7 +521,7 @@ async def smart_filter_memories(request: SmartFilterRequest):
                 }
             }
         }
-        
+
     except Exception as e:
         logger.error(f"智能记忆筛选失败: {e}", exc_info=True)
         return {
@@ -538,18 +537,18 @@ async def get_memory_stats(user_id: str):
     获取用户记忆统计信息
     """
     logger.info(f"获取记忆统计: user_id={user_id}")
-    
+
     try:
         # 获取对话历史
         conversations = await memory_manager.get_conversation_history(
             user_id=user_id,
             limit=1000  # 获取更多数据用于统计
         )
-        
+
         # 统计信息
         total_conversations = len(conversations)
         approved_conversations = sum(1 for conv in conversations if conv.get('expert_verified', False))
-        
+
         # 按日期统计
         date_stats = {}
         agent_stats = {}
@@ -563,7 +562,7 @@ async def get_memory_stats(user_id: str):
                         date_key = created_at.split('T')[0]
                     else:
                         date_key = created_at[:10]
-                    
+
                     if date_key not in date_stats:
                         date_stats[date_key] = {"total": 0, "approved": 0}
                     date_stats[date_key]["total"] += 1
@@ -571,7 +570,7 @@ async def get_memory_stats(user_id: str):
                         date_stats[date_key]["approved"] += 1
                 except Exception:
                     pass  # 忽略日期解析错误
-            
+
             # 按智能体统计
             agent_name = conv.get('agent_name', 'unknown')
             if agent_name not in agent_stats:
@@ -579,7 +578,7 @@ async def get_memory_stats(user_id: str):
             agent_stats[agent_name]["total"] += 1
             if conv.get('expert_verified', False):
                 agent_stats[agent_name]["approved"] += 1
-        
+
         return {
             "ret_code": "000000",
             "ret_msg": "操作成功",
@@ -593,7 +592,7 @@ async def get_memory_stats(user_id: str):
                 "generated_at": datetime.now().isoformat()
             }
         }
-        
+
     except Exception as e:
         logger.error(f"获取记忆统计失败: {e}", exc_info=True)
         return {
@@ -607,15 +606,15 @@ async def get_memory_stats(user_id: str):
 async def user_feedback_conversation(request: UserFeedbackRequest):
     """
     用户对对话进行反馈 - 点赞或点踩
-    
+
     Args:
         request: 用户反馈请求，包含系统回复内容和反馈类型
-        
+
     Returns:
         操作结果
     """
     logger.info(f"用户反馈: response='{request.response[:50]}...', approved={request.user_approved}")
-    
+
     try:
         # 验证反馈类型
         if request.user_approved not in [-1, 1]:
@@ -624,13 +623,13 @@ async def user_feedback_conversation(request: UserFeedbackRequest):
                 "ret_msg": "无效的反馈类型，必须是 0（点踩）或 1（点赞）",
                 "data": {}
             }
-        
+
         # 调用底层处理函数
         success = await memory_manager.handle_user_feedback(
             response=request.response,
             user_approved=request.user_approved
         )
-        
+
         if success:
             feedback_text = "点赞" if request.user_approved == 1 else "点踩"
             return {
@@ -652,7 +651,7 @@ async def user_feedback_conversation(request: UserFeedbackRequest):
                     "user_approved": request.user_approved
                 }
             }
-            
+
     except Exception as e:
         logger.error(f"用户反馈失败: {e}", exc_info=True)
         return {

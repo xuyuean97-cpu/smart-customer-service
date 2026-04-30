@@ -46,10 +46,10 @@ async def images_thinking(state: QuestionRecommendState, config: RunnableConfig)
         {
         "type":"text",
         "text": "用户初始问题：{user_query}。请你结合图片信息和用户原始问题，重新生成一个新的问题。问题必须是中文。",
-        }   
+        }
         ])
     ])
-    
+
     chain = image_assistant_prompt | image_model
     new_messages = filter_messages_for_llm(state, max_msg_len)
     messages = new_messages if len(new_messages) > 0 else [AIMessage(content="暂无对话历史")]

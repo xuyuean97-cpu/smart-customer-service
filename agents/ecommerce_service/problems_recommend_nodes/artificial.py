@@ -19,7 +19,7 @@ _emotion_mapping = {"Very Negative": 0, "Negative": 1, "Neutral": 2, "Positive":
 def initialize_emotion_classifier():
     """初始化情感分析分类器"""
     global _emotion_classifier
-    
+
     if _emotion_classifier is not None:
         return _emotion_classifier
     try:
@@ -27,17 +27,17 @@ def initialize_emotion_classifier():
         logger.info(f"情感分析模型使用设备: {device}")
         tokenizer = AutoTokenizer.from_pretrained(emotion["model_path"])
         model = AutoModelForSequenceClassification.from_pretrained(emotion["model_path"]).to(device)
-        
+
         _emotion_classifier = pipeline(
             "text-classification",
             model=model,
             tokenizer=tokenizer,
             device=0 if torch.cuda.is_available() else -1
         )
-        
+
         logger.info("情感分析模型初始化成功")
         return _emotion_classifier
-        
+
     except Exception as e:
         logger.error(f"情感分析模型初始化失败: {e}")
         return None
@@ -45,22 +45,22 @@ def initialize_emotion_classifier():
 def analyze_emotion_with_model(text: str)->dict:
     """使用深度学习模型进行情感分析"""
     global _emotion_classifier
-    
+
     if _emotion_classifier is None:
         _emotion_classifier = initialize_emotion_classifier()
-    
+
     try:
         result = _emotion_classifier(text)
         emotion_label = result[0]['label']
-        confidence = result[0]['score']
+        result[0]['score']
         emotion_score = _emotion_mapping.get(emotion_label, 2)  # 默认为中性
-                
+
         is_negative = emotion_score <= 1  # Very Negative 或 Negative
         return {
             "reason": "用户情绪已经非常的负面，需要转人工",
             "is_negative": is_negative
         }
-        
+
     except Exception as e:
         logger.error(f"情感分析出错: {e}")
         return {
@@ -76,7 +76,7 @@ def is_explicit_request(text:str)->bool:
 # 2. 同一问题重复n次（全局统计）
 def is_exact_repeat(messages: list, threshold: int = 3) -> bool:
     recent_human_messages = []
-    
+
     for message in reversed(messages):
         if hasattr(message, '__class__') and message.__class__.__name__ == 'HumanMessage':
             recent_human_messages.append(message.content)
@@ -93,15 +93,15 @@ def should_transfer(state: QuestionRecommendState,user_query:str):
         return {"reason": "用户明确输入请求转人工", "is_negative": True}
     if is_exact_repeat(state["messages"]):
         return {"reason": "用户重复输入相同问题3 次，需要转人工", "is_negative": True}
-    
+
     emotion_result = analyze_emotion_with_model(user_query)
     return  emotion_result
-    
+
 
 async def detect_emotion(state: QuestionRecommendState, config: RunnableConfig ):
     """
     情感识别节点
-    
+
     Args:
         state: 当前状态对象
         config: 可运行配置

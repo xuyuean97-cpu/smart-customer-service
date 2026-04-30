@@ -3,9 +3,8 @@
 提供与知识库系统异步通信功能
 """
 
-import asyncio
 import aiohttp
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from common.logging import get_logger
 
 
@@ -17,12 +16,12 @@ logger = get_logger("text2kb")
 # async def get_dataset_id(address: str, name: str, api_key: str) -> str:
 #     """
 #     异步获取知识库数据集ID
-    
+
 #     Args:
 #         address: API地址
 #         name: 数据集名称
 #         api_key: API密钥
-        
+
 #     Returns:
 #         数据集ID字符串，如果获取失败则返回空字符串
 #     """
@@ -40,7 +39,7 @@ logger = get_logger("text2kb")
 #     headers = {
 #         "Authorization": f"Bearer {api_key}"
 #     }
-    
+
 #     try:
 #         async with aiohttp.ClientSession() as session:
 #             async with session.get(base_url, params=params, headers=headers) as response:
@@ -66,7 +65,7 @@ async def get_dataset_id(base_url, dataset_name, api_key):
     # --- 步骤 B: 准备 URL ---
     # 1. 清理 base_url，确保没有 http/https 前缀，也没有尾部斜杠
     clean_base = base_url.replace("http://", "").replace("https://", "").rstrip("/")
-    
+
     # 2. 拼接完整的 API 路径
     # RAGFlow 获取数据集列表的标准接口通常是 /api/v1/datasets/list 或者 /api/v1/datasets
     # 我们加上 http:// 前缀
@@ -75,13 +74,13 @@ async def get_dataset_id(base_url, dataset_name, api_key):
     # --- 步骤 C: 准备请求参数 ---
     # page=1, page_size=100 确保能拉取到足够多的列表进行查找
     params = {
-        "page": 1, 
-        "page_size": 100, 
+        "page": 1,
+        "page_size": 100,
         "name": dataset_name # 部分版本的 API 支持直接按名字过滤
     }
-    
+
     headers = {
-        "Authorization": f"Bearer {api_key}", 
+        "Authorization": f"Bearer {api_key}",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Content-Type": "application/json"
     }
@@ -94,26 +93,26 @@ async def get_dataset_id(base_url, dataset_name, api_key):
             async with session.get(request_url, params=params, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
-                    
+
                     # --- 步骤 D: 解析响应 (核心修复部分) ---
                     # 服务器返回结构示例: {'code': 0, 'data': [ {'id': '...', 'name': 'test'}, ... ]}
-                    
+
                     found_id = None
                     if data.get('code') == 0 and 'data' in data:
                         dataset_list = data['data']
-                        
+
                         # 情况1: data 是列表 (List) - 最常见的情况
                         if isinstance(dataset_list, list):
                             for item in dataset_list:
                                 if item.get('name') == dataset_name:
                                     found_id = item.get('id')
                                     break
-                        
+
                         # 情况2: data 是字典 (Dict) - 兼容某些特殊 API 返回
                         elif isinstance(dataset_list, dict):
                             if dataset_list.get('name') == dataset_name:
                                 found_id = dataset_list.get('id')
-                    
+
                     # --- 步骤 E: 处理结果 ---
                     if found_id:
                         print(f"DEBUG: 成功解析并缓存数据集ID: {dataset_name} -> {found_id}")
@@ -142,7 +141,7 @@ async def retrieve_from_kb(question: str
                            ,key_words:bool=True) -> List[Dict[str, Any]]:
     """
     从知识库中检索信息
-    
+
     Args:
         question: 问题文本
         dataset_name: 数据集名称
@@ -150,11 +149,11 @@ async def retrieve_from_kb(question: str
         api_key: API密钥，默认从配置中获取
         similarity_threshold: 相似度阈值，低于此值的结果将被标记，默认为0.1
         top_k: 检索结果数量上限，默认为10
-        
+
     Returns:
         检索结果列表，包含内容和标记信息，按相关性排序
     """
-    
+
     logger.info(f"开始从知识库检索: '{question[:50]}...' (数据集: {dataset_name}, top_k: {top_k})")
     try:
         dataset_id = await get_dataset_id(address, dataset_name, api_key)
@@ -163,7 +162,7 @@ async def retrieve_from_kb(question: str
             return []
 
         retrieval_url = f"http://{address}/api/v1/retrieval"
-        
+
         # 准备请求数据
         payload = {
             "question": question,
@@ -173,19 +172,22 @@ async def retrieve_from_kb(question: str
             "top_k": top_k,
             "key_words": key_words
         }
-        
+
         # 设置请求头
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}"
         }
-        
+
         logger.debug(f"发送检索请求: {retrieval_url}")
         # 发送异步POST请求
         async with aiohttp.ClientSession() as session:
             async with session.post(retrieval_url, json=payload, headers=headers) as response:
                 if response.status == 200:
                     retrieval_data = await response.json()
+                    if not retrieval_data.get('data') or not retrieval_data['data'].get('chunks'):
+                        logger.warning(f"检索无结果 (数据集: {dataset_name}), 响应data为空")
+                        return []
                     all_content = sorted(
                         retrieval_data['data']['chunks'],
                         key=lambda x: x['vector_similarity'],
@@ -212,4 +214,4 @@ async def retrieve_from_kb(question: str
                     return []
     except Exception as e:
         logger.error(f"检索异常: {e}", exc_info=True)
-        return [] 
+        return []

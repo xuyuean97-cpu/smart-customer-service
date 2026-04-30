@@ -104,9 +104,9 @@
                 <pre><code class="language-python">from agents.ecommerce_service.context_engineering.memory_manager import memory_manager
 
 results = await memory_manager.get_smart_filtered_memories(
-    query="机场餐厅推荐",
+    query="平台餐厅推荐",
     user_id="user123",
-    agent_name="机场知识问答子智能体",
+    agent_name="平台知识问答子智能体",
     limit=10,
     similarity_weight=0.5,    # 相似度权重
     time_weight=0.2,          # 时间权重  
@@ -120,8 +120,8 @@ results = await memory_manager.get_smart_filtered_memories(
 
 smart_memories = await AgentMemoryMixin.retrieve_smart_filtered_memories(
     user_id="user123",
-    current_query="机场餐厅推荐",
-    agent_name="机场知识问答子智能体",
+    current_query="平台餐厅推荐",
+    agent_name="平台知识问答子智能体",
     limit=5,
     similarity_weight=0.6,
     time_weight=0.2,
@@ -133,9 +133,9 @@ smart_memories = await AgentMemoryMixin.retrieve_smart_filtered_memories(
 Content-Type: application/json
 
 {
-    "query": "机场餐厅推荐",
+    "query": "平台餐厅推荐",
     "user_id": "user123",
-    "agent_name": "机场知识问答子智能体",
+    "agent_name": "平台知识问答子智能体",
     "limit": 10,
     "similarity_weight": 0.5,
     "time_weight": 0.2,
@@ -321,10 +321,10 @@ quality_weight=0.3</code></pre>
                 <h3>实际应用示例</h3>
                 <div class="quick-start-grid">
                     <div class="quick-start-item">
-                        <h4>机场安检查询</h4>
+                        <h4>平台安检查询</h4>
                         <pre><code class="language-python"># 重视准确性和时效性
 memories = await memory_manager.get_smart_filtered_memories(
-    query="液体登机规定",
+    query="液体配送规定",
     user_id="user001",
     agent_name="安检助手",
     similarity_weight=0.4,
@@ -339,9 +339,9 @@ memories = await memory_manager.get_smart_filtered_memories(
                         <h4>紧急通知查询</h4>
                         <pre><code class="language-python"># 重视时效性
 memories = await memory_manager.get_smart_filtered_memories(
-    query="航班延误通知",
+    query="订单延误通知",
     user_id="user002",
-    agent_name="航班助手",
+    agent_name="订单助手",
     similarity_weight=0.3,
     time_weight=0.5,
     quality_weight=0.2,

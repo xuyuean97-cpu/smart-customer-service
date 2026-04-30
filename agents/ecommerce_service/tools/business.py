@@ -17,37 +17,37 @@ logger = get_logger("agents.tools.business")
 
 class WhellchairRentalRequest(BaseModel):
     name: str = Field(description="预约人姓名")
-    id_number: str = Field(description="旅客身份证号码,18位数字")
-    phone_number: str = Field(description="旅客联系方式,11位手机号")
-    flight_number: str = Field(description="航班号")
-    flight_date: str = Field(description="航班日期 格式为YYYY-MM-DD HH:MM:SS")
+    id_number: str = Field(description="用户身份证号码,18位数字")
+    phone_number: str = Field(description="用户联系方式,11位手机号")
+    order_number: str = Field(description="订单号")
+    service_date: str = Field(description="服务日期 格式为YYYY-MM-DD HH:MM:SS")
 
 
 @tool(return_direct=True,args_schema=WhellchairRentalRequest)
 async def wheelchair_rental(name: str
                                  , id_number: str
                                  , phone_number: str
-                                 , flight_number: str
-                                 , flight_date: str
+                                 , order_number: str
+                                 , service_date: str
                                  ,config: RunnableConfig
 ) -> str:
     """
-    轮椅租赁服务工具
-    
+    售后服务申请工具
+
     Args:
-        request: 轮椅租赁相关请求
+        request: 售后服务相关请求
     """
     await asyncio.sleep(1)
-    logger.info(f"进入轮椅租赁服务调用: ")
-    logger.info(f"收集到的参数 - 姓名: {name}, 身份证: {id_number}, 电话: {phone_number}, 航班号: {flight_number}, 航班日期: {flight_date}")
-    
+    logger.info("进入售后服务调用: ")
+    logger.info(f"收集到的参数 - 姓名: {name}, 身份证: {id_number}, 电话: {phone_number}, 订单号: {order_number}, 服务日期: {service_date}")
+
     # 返回表单结构的JSON字符串
     import json
-    
+
     # 构建表单字段，如果参数有值则添加预填值
     fields = []
     prefilled_fields = []  # 记录预填的字段
-    
+
     # 姓名字段
     name_field = {
         "id": "cjr",
@@ -60,7 +60,7 @@ async def wheelchair_rental(name: str
         name_field["value"] = name.strip()
         prefilled_fields.append(f"姓名: {name.strip()}")
     fields.append(name_field)
-    
+
     # 身份证号码字段
     id_field = {
         "id": "id_number",
@@ -77,7 +77,7 @@ async def wheelchair_rental(name: str
         id_field["value"] = id_number.strip()
         prefilled_fields.append(f"身份证: {id_number.strip()}")
     fields.append(id_field)
-    
+
     # 联系电话字段
     phone_field = {
         "id": "cjrdh",
@@ -94,37 +94,37 @@ async def wheelchair_rental(name: str
         phone_field["value"] = phone_number.strip()
         prefilled_fields.append(f"电话: {phone_number.strip()}")
     fields.append(phone_field)
-    
-    # 租赁时间字段
+
+    # 服务日期字段
     time_field = {
         "id": "rq",
         "type": "datetime-local",
-        "label": "航班日期",
-        "placeholder": "请选择航班日期",
+        "label": "服务日期",
+        "placeholder": "请选择服务日期",
         "required": True
     }
-    if flight_date and flight_date.strip():  # 如果租赁时间已收集到
-        time_field["value"] = flight_date.strip()
-        prefilled_fields.append(f"时间: {flight_date.strip()}")
+    if service_date and service_date.strip():
+        time_field["value"] = service_date.strip()
+        prefilled_fields.append(f"服务日期: {service_date.strip()}")
     fields.append(time_field)
 
-    # 航班号字段
-    flight_number_field = {
+    # 订单号字段
+    order_number_field = {
         "id": "hbxx",
         "type": "text",
-        "label": "航班号",
-        "placeholder": "请输入航班号",
+        "label": "订单号",
+        "placeholder": "请输入订单号",
         "required": True
     }
-    if flight_number and flight_number.strip():  # 如果航班号已收集到
-        flight_number_field["value"] = flight_number.strip()
-        prefilled_fields.append(f"航班号: {flight_number.strip()}")
-    fields.append(flight_number_field)
-    
+    if order_number and order_number.strip():
+        order_number_field["value"] = order_number.strip()
+        prefilled_fields.append(f"订单号: {order_number.strip()}")
+    fields.append(order_number_field)
+
     form_data = {
         "type": "form",
-        "title": "轮椅租赁申请",
-        "description": "请填写以下信息完成轮椅租赁申请",
+        "title": "售后服务申请",
+        "description": "请填写以下信息完成售后服务申请",
         "fields": fields,
         "buttons": [
             {
@@ -140,19 +140,19 @@ async def wheelchair_rental(name: str
         ],
         "action": "/api/v1/business/wheelchair-rental",
         "info": {
-            "service_description": "轮椅租赁服务免费提供给行动不便的旅客，仅限机场内使用，可在各航站楼问询台申请。"
+            "service_description": "售后服务申请可在线提交退换货、维修等请求，无需拨打客服电话，方便快捷。"
         }
     }
-    
+
     # 记录预填字段信息
     if prefilled_fields:
         logger.info(f"表单预填字段: {', '.join(prefilled_fields)}")
     else:
         logger.info("无预填字段，返回空白表单")
-    
+
     return json.dumps(form_data, ensure_ascii=False)
 
 @tool(return_direct=True)
-async def test(name: str): 
+async def test(name: str):
     """这是一个占位工具，暂时不执行任何操作。"""
     print("test",name)

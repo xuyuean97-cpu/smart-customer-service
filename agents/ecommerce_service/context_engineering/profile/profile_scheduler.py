@@ -25,16 +25,16 @@ class ScheduleConfig:
     enable_daily_aggregation: bool = True        # 每日凌晨聚合转人工率、售后率
     enable_deep_analysis: bool = True            # 每周计算买家LTV、流失风险
     enable_operational_reports: bool = True      # 自动生成电商运营报告
-    
+
     # 调度时间配置
     daily_aggregation_time: str = "01:00"        # 每日凌晨1点进行当天数据结账
     deep_analysis_day: int = 0                   # 周一进行买家深度分析
     deep_analysis_time: str = "02:00"            # 凌晨2点
-    
+
     # 触发条件配置
     session_timeout_minutes: int = 30            # 超过30分钟未说话视为会话结束，触发提取
     min_deep_analysis_days: int = 3              # 深度分析最少需要的天数(电商频次较高，改为3天即可)
-    
+
     # 并发控制
     max_concurrent_extractions: int = 10         # 最大并发大模型调用数
     batch_size: int = 50                         # 批处理大小
@@ -51,22 +51,22 @@ class ConversationData:
 
 class ProfileScheduler:
     """电商智能客服 - 用户画像自动调度器"""
-    
+
     def __init__(self, config: ScheduleConfig = None, llm_client = None):
         self.config = config or ScheduleConfig()
         self.scheduler = AsyncIOScheduler()
-        
+
         # 引入电商版的提取器和分析引擎
         self.profile_extractor = create_profile_extractor(llm_client)
         self.analytics_engine = OperationalAnalyticsEngine()
-        
+
         # 活跃买家会话跟踪池
         self.active_sessions: Dict[str, datetime] = {}
         self.pending_extractions: Dict[str, ConversationData] = {}
-        
+
         # 并发控制锁
         self.extraction_semaphore = asyncio.Semaphore(self.config.max_concurrent_extractions)
-        
+
         # 生命周期回调函数钩子 (供外部存入数据库使用)
         self.session_end_callbacks: List[Callable] = []
         self.daily_update_callbacks: List[Callable] = []
@@ -81,12 +81,12 @@ class ProfileScheduler:
                 self._schedule_deep_analysis()
             if self.config.enable_operational_reports:
                 self._schedule_operational_reports()
-            
+
             self._schedule_session_timeout_check()
-            
+
             self.scheduler.start()
             logger.info("🛒 电商买家画像调度系统已启动")
-            
+
         except Exception as e:
             logger.error(f"调度系统启动失败: {str(e)}")
             raise
@@ -142,7 +142,7 @@ class ProfileScheduler:
         try:
             session_key = f"{user_id}:{session_id}"
             self.active_sessions[session_key] = datetime.now()
-            
+
             if session_key not in self.pending_extractions:
                 self.pending_extractions[session_key] = ConversationData(
                     session_id=session_id, user_id=user_id, messages=[],
@@ -172,18 +172,18 @@ class ProfileScheduler:
             current_time = datetime.now()
             timeout_threshold = timedelta(minutes=self.config.session_timeout_minutes)
             timeout_sessions = []
-            
+
             for session_key, last_activity in self.active_sessions.items():
                 if current_time - last_activity > timeout_threshold:
                     timeout_sessions.append(session_key)
-            
+
             for session_key in timeout_sessions:
                 if session_key in self.pending_extractions:
                     conversation = self.pending_extractions[session_key]
                     conversation.end_time = current_time
                     asyncio.create_task(self._process_session_extraction(conversation))
                     logger.info(f"会话静默超时，进入画像提取队列: {session_key}")
-                
+
                 self.active_sessions.pop(session_key, None)
                 self.pending_extractions.pop(session_key, None)
         except Exception as e:
@@ -195,7 +195,7 @@ class ProfileScheduler:
             try:
                 if not self.config.enable_session_extraction:
                     return
-                
+
                 conversation_history = []
                 for msg in conversation.messages:
                     conversation_history.append({
@@ -205,12 +205,12 @@ class ProfileScheduler:
                         'created_at': msg.get('timestamp', datetime.now().isoformat()),
                         'metadata': conversation.technical_context
                     })
-                
+
                 # 调用重构后的提取器 (移除了旧版的不兼容参数)
                 result = await self.profile_extractor.extract_session_profile(
                     conversation_history=conversation_history
                 )
-                
+
                 if result:
                     # 抛给上层应用（如保存到 MongoDB / Redis）
                     for callback in self.session_end_callbacks:
@@ -219,7 +219,7 @@ class ProfileScheduler:
                         except Exception as e:
                             logger.error(f"会话结束回调执行失败: {str(e)}")
                     logger.info(f"✅ 买家 {conversation.user_id} 单次画像提取完成 (意图: {len(result.shopping_interaction.service_intents)}个)")
-                
+
             except Exception as e:
                 logger.error(f"单次会话画像提取失败: {str(e)}")
 
@@ -228,13 +228,13 @@ class ProfileScheduler:
             yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
             users_to_process = await self._get_active_buyers_for_date(yesterday)
             logger.info(f"开始生成每日买家聚合指标，日期：{yesterday}，买家数：{len(users_to_process)}")
-            
+
             for i in range(0, len(users_to_process), self.config.batch_size):
                 batch = users_to_process[i:i + self.config.batch_size]
                 tasks = [self._process_daily_aggregation(user_id, yesterday) for user_id in batch]
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 success_count = sum(1 for r in results if isinstance(r, ProfileUpdateResult) and r.success)
-                
+
             logger.info(f"每日买家画像聚合完成，成功：{success_count}/{len(users_to_process)}")
         except Exception as e:
             logger.error(f"每日聚合任务失败: {str(e)}")
@@ -245,16 +245,16 @@ class ProfileScheduler:
                 session_profiles = await self._get_session_profiles_for_user_date(user_id, date)
                 if not session_profiles:
                     return ProfileUpdateResult(user_id=user_id, update_type="daily", success=False, error_message="当日无咨询")
-                
+
                 # 调用重构后的方法：计算买家当日转人工率、售后倾向等
                 daily_profile = await self.profile_extractor.extract_daily_profile(
                     session_profiles=session_profiles
                 )
-                
+
                 if daily_profile:
                     for callback in self.daily_update_callbacks:
                         await callback(user_id, date, daily_profile)
-                    
+
                     return ProfileUpdateResult(user_id=user_id, update_type="daily", success=True)
             except Exception as e:
                 return ProfileUpdateResult(user_id=user_id, update_type="daily", success=False, error_message=str(e))
@@ -263,12 +263,12 @@ class ProfileScheduler:
         try:
             users_to_analyze = await self._get_buyers_for_deep_analysis()
             logger.info(f"开始买家深度洞察(推测购买力、流失风险)，目标用户数：{len(users_to_analyze)}")
-            
+
             for i in range(0, len(users_to_analyze), self.config.batch_size):
                 batch = users_to_analyze[i:i + self.config.batch_size]
                 tasks = [self._process_deep_analysis(user_id) for user_id in batch]
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                
+                await asyncio.gather(*tasks, return_exceptions=True)
+
             logger.info("买家深度分析批次完成")
         except Exception as e:
             logger.error(f"深度分析任务失败: {str(e)}")
@@ -281,21 +281,21 @@ class ProfileScheduler:
                 daily_profiles = await self._get_daily_profiles_for_user_period(
                     user_id, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
                 )
-                
+
                 if len(daily_profiles) < self.config.min_deep_analysis_days:
                     return ProfileUpdateResult(user_id=user_id, update_type="deep_insight", success=False, error_message="历史互动数据不足以进行深度归纳")
-                
+
                 # 提取客户价值、购买偏好、流失率
                 insight_profile = await self.profile_extractor.extract_insight_profile(
                     user_id=user_id,
                     daily_profiles=daily_profiles,
                     analysis_period=f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
                 )
-                
+
                 if insight_profile:
                     for callback in self.deep_analysis_callbacks:
                         await callback(user_id, insight_profile)
-                    
+
                     return ProfileUpdateResult(
                         user_id=user_id, update_type="deep_insight", success=True,
                         confidence_score=insight_profile.profile_confidence
@@ -318,7 +318,7 @@ class ProfileScheduler:
             week_start = now - timedelta(days=now.weekday())
             week_end = week_start + timedelta(days=6)
             period = f"{week_start.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')}"
-            
+
             report = await self.analytics_engine.generate_operational_report(period, "weekly")
             logger.info(f"📊 电商周度运营大盘报告已生成: {report.report_id}")
         except Exception as e:
@@ -327,7 +327,7 @@ class ProfileScheduler:
     # ================= 数据库 Mock 访问层 (实际项目中需要被替换) =================
     async def _get_active_buyers_for_date(self, date: str) -> List[str]:
         """获取指定日期有过咨询的买家ID"""
-        return [f"buyer_{i}" for i in range(1, 11)] 
+        return [f"buyer_{i}" for i in range(1, 11)]
 
     async def _get_buyers_for_deep_analysis(self) -> List[str]:
         """获取符合深度分析条件(如近期频发售后)的买家ID"""

@@ -13,7 +13,7 @@ TEXT2SQL_CONFIG = {
         "temperature": float(os.getenv("LLM_TEMPERATURE", "0.7")),
         "max_tokens": int(os.getenv("LLM_MAX_TOKENS", 20000))
     },
-    
+
     # 嵌入模型配置
     "embedding": {
         "api_key": os.getenv("EMBEDDING_API_KEY",os.getenv("LLM_API_KEY")),
@@ -22,7 +22,7 @@ TEXT2SQL_CONFIG = {
         "dimensions": int(os.getenv("EMBEDDING_DIMENSIONS", 512)),
         "max_tokens": int(os.getenv("EMBEDDING_MAX_TOKENS", 1024))
     },
-    
+
     # 数据库配置
     "db": {
         "type": os.getenv("DB_TYPE", "postgresql"),
@@ -34,7 +34,7 @@ TEXT2SQL_CONFIG = {
         "min_size": int(os.getenv("DB_MIN_SIZE", "2")),
         "max_size": int(os.getenv("DB_MAX_SIZE", "5"))
     },
-    
+
     # 向量数据库配置
     "storage": {
         "type": os.getenv("STORAGE_TYPE", "chromadb"),

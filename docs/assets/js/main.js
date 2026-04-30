@@ -611,8 +611,8 @@ function initSocialShare() {
 }
 
 function shareContent(platform) {
-    const title = 'AI智能客服系统 - 革命性的机场客户服务解决方案';
-    const description = '帮助机场提升服务效率300%，降低人工成本60%，实现24/7无间断智能服务';
+    const title = 'AI智能客服系统 - 革命性的平台客户服务解决方案';
+    const description = '帮助平台提升服务效率300%，降低人工成本60%，实现24/7无间断智能服务';
     const url = window.location.href;
     
     switch (platform) {

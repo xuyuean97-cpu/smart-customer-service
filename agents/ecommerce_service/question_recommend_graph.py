@@ -9,7 +9,7 @@ from langgraph.types import RetryPolicy
 def build_question_recommend_graph():
     """
     构建电商客服系统图，但不编译
-    
+
     Returns:
         未编译的图对象
     """

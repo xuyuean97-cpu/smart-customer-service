@@ -1,6 +1,22 @@
+import sys
+import io
 import os
-import asyncio
-from fastapi import FastAPI, Request, Response
+
+# 强制 UTF-8 I/O（Windows 中文版默认 GBK，必须在任何 import 前执行）
+try:
+    if hasattr(sys.stdout, "buffer") and sys.stdout.encoding != "utf-8":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "buffer") and sys.stderr.encoding != "utf-8":
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+except Exception:
+    pass
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
+# HuggingFace 镜像（必须在所有 import 之前设置，否则 huggingface_hub 会缓存默认 endpoint）
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+os.environ.setdefault("HF_HUB_ENDPOINT", "https://hf-mirror.com")
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
@@ -47,34 +63,34 @@ async def lifespan(app: FastAPI):
         logger.info("开始注册图...")
         graph_manager.register_graph("ecommerce_service_graph", build_ecommerce_service_graph())
         logger.info("成功注册 ecommerce_service_graph")
-        
+
         graph_manager.register_graph("question_recommend_graph", build_question_recommend_graph())
         logger.info("成功注册 question_recommend_graph")
-        
+
         graph_manager.register_graph("business_recommend_graph", build_business_recommend_graph())
         logger.info("成功注册 business_recommend_graph")
-        
+
         logger.info(f"所有图注册完成，当前已注册的图：{list(graph_manager._registered_graphs.keys())}")
     except Exception as e:
         logger.error(f"图注册失败：{e}", exc_info=True)
         raise
-    
-    # 启动记忆管理调度器
-    # try:
-    #     start_memory_scheduler()
-    #     logger.info("记忆管理调度器已启动")
-    # except Exception as e:
-    #     logger.error(f"启动记忆管理调度器失败：{e}", exc_info=True)
-    
+
+    # 启动记忆管理调度器（每日凌晨 2:00 聚合画像，每周一凌晨 3:00 深度分析）
+    try:
+        start_memory_scheduler()
+        logger.info("记忆管理调度器已启动")
+    except Exception as e:
+        logger.error(f"启动记忆管理调度器失败：{e}", exc_info=True)
+
     logger.info("Application started")
     yield
     # 关闭事件
-    # try:
-    #     stop_memory_scheduler()
-    #     logger.info("记忆管理调度器已停止")
-    # except Exception as e:
-    #     logger.error(f"停止记忆管理调度器失败：{e}", exc_info=True)
-    
+    try:
+        stop_memory_scheduler()
+        logger.info("记忆管理调度器已停止")
+    except Exception as e:
+        logger.error(f"停止记忆管理调度器失败：{e}", exc_info=True)
+
     logger.info("Application shutting down")
 
 # 获取应用配置
@@ -99,10 +115,24 @@ app.add_middleware(
 
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="static"), name="static")
+# 管理后台 SPA (Vue 3 + Element Plus) — 仅在已构建时启用
+import os as _os
+_admin_dist = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "admin", "dist")
+if _os.path.exists(_admin_dist):
+    # 1. 先挂载静态资源 (js/css/assets)
+    app.mount("/admin/assets", StaticFiles(directory=_os.path.join(_admin_dist, "assets")), name="admin_assets")
+    # 2. SPA 回退路由 — 所有 /admin/* 的 HTML 请求返回 index.html
+    from fastapi.responses import FileResponse
+    @app.get("/admin/{rest:path}", include_in_schema=False)
+    async def admin_spa(rest: str = ""):
+        return FileResponse(_os.path.join(_admin_dist, "index.html"))
+    @app.get("/admin", include_in_schema=False)
+    async def admin_root():
+        return FileResponse(_os.path.join(_admin_dist, "index.html"))
 
 # 注册API路由
 # 1. 认证模块路由 (注册/登录/忘记密码)
-app.include_router(auth_router) 
+app.include_router(auth_router)
 # 2. 业务API路由
 app.include_router(api_router)
 

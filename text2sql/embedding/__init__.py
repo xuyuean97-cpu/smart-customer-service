@@ -4,4 +4,4 @@ from .generic import (
 
 __all__ = [
     "GenericEmbedding",
-] 
+]
