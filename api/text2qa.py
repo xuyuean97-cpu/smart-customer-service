@@ -18,7 +18,7 @@ RAGFLOW_URL = os.getenv("KB_ADDRESS", "http://localhost:8000")
 router = APIRouter(prefix="/text2qa", tags=["text2qa"])
 
 # 导入图片相关模型
-from models.schemas import ImageData
+from models.schemas import ImageData  # noqa: E402
 
 # Pydantic模型
 class QAPair(BaseModel):
@@ -117,7 +117,7 @@ async def add_qa_pair(qa_pair: QAPair, request: Request):
         )
     except Exception as e:
         logger.error(f"添加QA对失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.post("/qa/batch", response_model=APIResponse)
 async def add_qa_pairs_batch(qa_batch: QAPairBatch, request: Request):
@@ -169,7 +169,7 @@ async def add_qa_pairs_batch(qa_batch: QAPairBatch, request: Request):
         )
     except Exception as e:
         logger.error(f"批量添加QA对失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/qa", response_model=APIResponse)
 async def get_all_qa():
@@ -223,7 +223,7 @@ async def get_all_qa():
 
     except Exception as e:
         logger.error(f"获取所有QA对失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 class DeleteQARequest(BaseModel):
     id: str = Field(..., description="专家库memory_id")
@@ -244,8 +244,7 @@ async def delete_qa_pair(request: DeleteQARequest):
             expert_deleted = await memory_manager.delete_expert_qa(request.id)
         except Exception as expert_error:
             logger.error(f"从专家库删除失败: {str(expert_error)}")
-
-        except Exception as redis_error:
+        except Exception as redis_error:  # noqa: B025 separate Redis error handling
             logger.error(f"从Redis删除失败: {str(redis_error)}")
 
         # 判断删除结果
@@ -268,7 +267,7 @@ async def delete_qa_pair(request: DeleteQARequest):
         raise
     except Exception as e:
         logger.error(f"删除QA对失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/count", response_model=APIResponse)
 async def get_qa_count():
@@ -297,7 +296,7 @@ async def get_qa_count():
         )
     except Exception as e:
         logger.error(f"获取QA对总数失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/ping", response_model=APIResponse)
 async def ping():
@@ -337,7 +336,7 @@ async def ping():
 
     except Exception as e:
         logger.error(f"健康检查失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 async def check_ragflow():
     try:
         async with httpx.AsyncClient(timeout=5) as client:
@@ -403,4 +402,4 @@ async def add_qa_with_file_upload(
 
     except Exception as e:
         logger.error(f"添加QA对（文件上传）失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

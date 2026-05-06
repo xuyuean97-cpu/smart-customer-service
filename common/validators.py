@@ -89,7 +89,7 @@ class Validator:
         try:
             int_value = int(value)
         except (ValueError, TypeError):
-            raise ValidationError(f"{field_name}必须是整数")
+            raise ValidationError(f"{field_name}必须是整数") from None
 
         if min_value is not None and int_value < min_value:
             raise ValidationError(f"{field_name}不能小于{min_value}")
@@ -121,7 +121,7 @@ class Validator:
         try:
             float_value = float(value)
         except (ValueError, TypeError):
-            raise ValidationError(f"{field_name}必须是数字")
+            raise ValidationError(f"{field_name}必须是数字") from None
 
         if min_value is not None and float_value < min_value:
             raise ValidationError(f"{field_name}不能小于{min_value}")
@@ -209,7 +209,7 @@ class Validator:
         try:
             return json.loads(value)
         except json.JSONDecodeError:
-            raise ValidationError(f"{field_name}不是有效的JSON格式")
+            raise ValidationError(f"{field_name}不是有效的JSON格式") from None
 
     @staticmethod
     def is_in_choices(value: Any, choices: List[Any], field_name: str = "字段") -> Any:
@@ -251,7 +251,7 @@ class Validator:
         try:
             return datetime.strptime(value, format_str)
         except ValueError:
-            raise ValidationError(f"{field_name}格式不正确，应为: {format_str}")
+            raise ValidationError(f"{field_name}格式不正确，应为: {format_str}") from None
 
     @staticmethod
     def validate_dict(data: Dict[str, Any], schema: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:

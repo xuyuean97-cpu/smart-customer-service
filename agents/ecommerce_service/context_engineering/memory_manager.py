@@ -1800,19 +1800,30 @@ class MemoryManager:
         try:
             filter_conditions = [{"agent_memory_type": {"$eq": MemoryType.USER_SESSION_PROFILE.value}}]
 
-            if user_id: filter_conditions.append({"user_id": {"$eq": user_id}})
-            if application_id: filter_conditions.append({"application_id": {"$eq": application_id}})
-            if run_id: filter_conditions.append({"run_id": {"$eq": run_id}})
-            if day: filter_conditions.append({"day": {"$eq": day}})
-            if sentiment: filter_conditions.append({"sentiment": {"$eq": sentiment}})
-            if anxiety_score: filter_conditions.append({"anxiety_score": {"$gte": anxiety_score}})
-            if resolution_status: filter_conditions.append({"resolution_status": {"$eq": resolution_status}})
+            if user_id:
+                filter_conditions.append({"user_id": {"$eq": user_id}})
+            if application_id:
+                filter_conditions.append({"application_id": {"$eq": application_id}})
+            if run_id:
+                filter_conditions.append({"run_id": {"$eq": run_id}})
+            if day:
+                filter_conditions.append({"day": {"$eq": day}})
+            if sentiment:
+                filter_conditions.append({"sentiment": {"$eq": sentiment}})
+            if anxiety_score:
+                filter_conditions.append({"anxiety_score": {"$gte": anxiety_score}})
+            if resolution_status:
+                filter_conditions.append({"resolution_status": {"$eq": resolution_status}})
 
             # 电商专属查询过滤
-            if orders: filter_conditions.append({"orders": {"$in": orders}})
-            if products: filter_conditions.append({"products": {"$in": products}})
-            if service_intents: filter_conditions.append({"service_intents": {"$in": service_intents}})
-            if customer_type: filter_conditions.append({"customer_type": {"$eq": customer_type}})
+            if orders:
+                filter_conditions.append({"orders": {"$in": orders}})
+            if products:
+                filter_conditions.append({"products": {"$in": products}})
+            if service_intents:
+                filter_conditions.append({"service_intents": {"$in": service_intents}})
+            if customer_type:
+                filter_conditions.append({"customer_type": {"$eq": customer_type}})
 
             filters = filter_conditions[0] if len(filter_conditions) == 1 else {"$and": filter_conditions}
             result = await self.profile_memory.get_all(filters=filters, limit=limit)
@@ -1911,12 +1922,18 @@ class MemoryManager:
         try:
             filter_conditions = [{"agent_memory_type": {"$eq": MemoryType.USER_DAILY_PROFILE.value}}]
 
-            if user_id: filter_conditions.append({"user_id": {"$eq": user_id}})
-            if application_id: filter_conditions.append({"application_id": {"$eq": application_id}})
-            if date: filter_conditions.append({"date": {"$eq": date}})
-            if human_transfer_rate: filter_conditions.append({"human_transfer_rate": {"$gte": human_transfer_rate}})
-            if orders_queried: filter_conditions.append({"orders_queried": {"$gte": orders_queried}})
-            if after_sales_requested: filter_conditions.append({"after_sales_requested": {"$gte": after_sales_requested}})
+            if user_id:
+                filter_conditions.append({"user_id": {"$eq": user_id}})
+            if application_id:
+                filter_conditions.append({"application_id": {"$eq": application_id}})
+            if date:
+                filter_conditions.append({"date": {"$eq": date}})
+            if human_transfer_rate:
+                filter_conditions.append({"human_transfer_rate": {"$gte": human_transfer_rate}})
+            if orders_queried:
+                filter_conditions.append({"orders_queried": {"$gte": orders_queried}})
+            if after_sales_requested:
+                filter_conditions.append({"after_sales_requested": {"$gte": after_sales_requested}})
 
             filters = filter_conditions[0] if len(filter_conditions) == 1 else {"$and": filter_conditions}
             result = await self.profile_memory.get_all(filters=filters, limit=limit)
@@ -1960,14 +1977,22 @@ class MemoryManager:
         try:
             filter_conditions = [{"agent_memory_type": {"$eq": MemoryType.USER_DEEP_PROFILE.value}}]
 
-            if user_id: filter_conditions.append({"user_id": {"$eq": user_id}})
-            if application_id: filter_conditions.append({"application_id": {"$eq": application_id}})
-            if analysis_period: filter_conditions.append({"analysis_period": {"$eq": analysis_period}})
-            if primary_customer_type: filter_conditions.append({"primary_customer_type": {"$eq": primary_customer_type}})
-            if spending_power: filter_conditions.append({"spending_power": {"$eq": spending_power}})
-            if customer_value_score: filter_conditions.append({"customer_value_score": {"$gte": customer_value_score}})
-            if churn_risk: filter_conditions.append({"churn_risk": {"$gte": churn_risk}})
-            if upsell_potential: filter_conditions.append({"upsell_potential": {"$gte": upsell_potential}})
+            if user_id:
+                filter_conditions.append({"user_id": {"$eq": user_id}})
+            if application_id:
+                filter_conditions.append({"application_id": {"$eq": application_id}})
+            if analysis_period:
+                filter_conditions.append({"analysis_period": {"$eq": analysis_period}})
+            if primary_customer_type:
+                filter_conditions.append({"primary_customer_type": {"$eq": primary_customer_type}})
+            if spending_power:
+                filter_conditions.append({"spending_power": {"$eq": spending_power}})
+            if customer_value_score:
+                filter_conditions.append({"customer_value_score": {"$gte": customer_value_score}})
+            if churn_risk:
+                filter_conditions.append({"churn_risk": {"$gte": churn_risk}})
+            if upsell_potential:
+                filter_conditions.append({"upsell_potential": {"$gte": upsell_potential}})
 
             filters = filter_conditions[0] if len(filter_conditions) == 1 else {"$and": filter_conditions}
             result = await self.profile_memory.get_all(filters=filters, limit=limit)
@@ -2074,9 +2099,12 @@ class MemoryManager:
     def _reconstruct_profile_object(self, profile_data: Dict[str, Any], profile_type: str):
         """根据电商画像类型重构对象"""
         try:
-            if profile_type == "session": return SessionProfile(**profile_data)
-            elif profile_type == "daily": return DailyProfile(**profile_data)
-            elif profile_type in ["deep", "deep_insight"]: return InsightProfile(**profile_data)
+            if profile_type == "session":
+                return SessionProfile(**profile_data)
+            elif profile_type == "daily":
+                return DailyProfile(**profile_data)
+            elif profile_type in ["deep", "deep_insight"]:
+                return InsightProfile(**profile_data)
             return None
         except Exception as e:
             logger.warning(f"重构{profile_type}画像失败: {e}")

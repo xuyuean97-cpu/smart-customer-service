@@ -81,4 +81,4 @@ async def oauth_callback(
         return {"success": True, "platform": platform, "expires_at": cred.expires_at}
     except Exception as e:
         logger.error(f"[{platform}] OAuth 失败: {e}")
-        raise HTTPException(500, f"授权失败: {e}")
+        raise HTTPException(500, f"授权失败: {e}") from e

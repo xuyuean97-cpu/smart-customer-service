@@ -35,15 +35,11 @@ def get_express_code_by_id(order_id: str) -> str:
     return order_id[:2].upper()
 
 async def build_and_run_order_sql_query(order_ids: list[str]) -> list:
-    """查询订单详情与实时物流轨迹"""
-    order_str = ",".join(f"'{o}'" for o in order_ids)
-    sql = f"""
-    SELECT *
-    FROM order_logistics_tracking
-    WHERE order_id IN ({order_str});
-    """
+    """查询订单详情与实时物流轨迹 (参数化查询防注入)"""
+    placeholders = ",".join(f"${i + 1}" for i in range(len(order_ids)))
+    sql = f"SELECT * FROM order_logistics_tracking WHERE order_id IN ({placeholders})"
     smart_sql = await get_text2sql_instance()
-    result = await smart_sql.run_sql(sql.strip())
+    result = await smart_sql.run_sql(sql.strip(), *order_ids)
     return result
 
 async def build_and_run_brand_logo_query(express_codes: list[str]) -> dict:
@@ -52,16 +48,12 @@ async def build_and_run_brand_logo_query(express_codes: list[str]) -> dict:
         return {}
 
     unique_codes = list(set(code.upper() for code in express_codes if code))
-    code_str = ",".join(f"'{code}'" for code in unique_codes)
-    sql = f"""
-    SELECT express_code, logo_data_uri
-    FROM express_logos
-    WHERE express_code IN ({code_str});
-    """
+    placeholders = ",".join(f"${i + 1}" for i in range(len(unique_codes)))
+    sql = f"SELECT express_code, logo_data_uri FROM express_logos WHERE express_code IN ({placeholders})"
 
     try:
         smart_sql = await get_text2sql_instance()
-        result = await smart_sql.run_sql(sql.strip())
+        result = await smart_sql.run_sql(sql.strip(), *unique_codes)
 
         logo_dict = {}
         if isinstance(result, list):
@@ -92,7 +84,8 @@ async def send_order_info_to_user(sql_result):
 
         send_data_list = []
         for order in order_details:
-            if not isinstance(order, dict): continue
+            if not isinstance(order, dict):
+                continue
 
             # 通过 OrderInfo Pydantic 模型规范化字段名（旧机场名→新电商名）
             try:
@@ -162,7 +155,7 @@ async def order_logistics_agent(state: EcommerceMainServiceState, config: Runnab
     if sql_result:
         try:
             await send_order_info_to_user(json.loads(sql_result))
-        except:
+        except Exception:
             pass
 
     return {"messages": [res], "db_context_docs": None}

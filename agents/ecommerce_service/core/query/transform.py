@@ -4,6 +4,7 @@ from typing import List
 from langchain_core.messages import AnyMessage
 from common.logging import get_logger
 from agents.ecommerce_service.context_engineering.prompts import query_transform_prompts
+from datetime import datetime
 
 logger = get_logger("agents.utils.query_transform")
 
@@ -328,7 +329,7 @@ async def order_rewrite_query(original_query: str, messages: List[AnyMessage]) -
     order_rewrite_prompt = ChatPromptTemplate.from_messages([
         ("system", query_transform_prompts.ORDER_QUERY_REWRITE_SYSTEM_PROMPT),
         ("human", query_transform_prompts.ORDER_QUERY_REWRITE_PROMPT)
-    ])
+    ]).partial(time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     order_rewriter = order_rewrite_prompt | model
 
     try:

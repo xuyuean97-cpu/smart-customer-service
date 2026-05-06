@@ -139,7 +139,7 @@ class ImageHandler:
 
         except Exception as e:
             logger.error(f"❌ 图片保存失败: {str(e)}", exc_info=True)
-            raise IOError(f"图片保存失败: {str(e)}")
+            raise IOError(f"图片保存失败: {str(e)}") from e
 
     def generate_url(self, file_path: str, base_url: str) -> str:
         """
@@ -189,7 +189,7 @@ class ImageHandler:
 
         except Exception as e:
             logger.error(f"❌ 图片处理失败: {str(e)}", exc_info=True)
-            raise ValueError(f"图片处理失败: {str(e)}")
+            raise ValueError(f"图片处理失败: {str(e)}") from e
 
     def delete_image(self, file_path: str) -> bool:
         """

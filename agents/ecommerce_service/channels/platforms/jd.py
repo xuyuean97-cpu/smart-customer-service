@@ -187,10 +187,14 @@ class JdAdapter(EcommercePlatformAdapter):
         return mapping.get(jd_status, "unknown")
 
     def _map_logistics_status(self, desc: str) -> str:
-        if "签收" in desc: return "已签收"
-        if "派送" in desc: return "派送中"
-        if "运输" in desc: return "运输中"
-        if "揽收" in desc: return "已揽收"
+        if "签收" in desc:
+            return "已签收"
+        if "派送" in desc:
+            return "派送中"
+        if "运输" in desc:
+            return "运输中"
+        if "揽收" in desc:
+            return "已揽收"
         return "运输中"
 
 

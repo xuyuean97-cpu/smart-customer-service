@@ -73,7 +73,22 @@
       "Bash(python -c \"import sys,json; print\\(json.load\\(sys.stdin\\).get\\('ret_msg','?'\\)\\)\")",
       "Bash(uv sync *)",
       "Bash(curl -s http://localhost:8081/health)",
-      "Bash(curl -s http://localhost:8081/docs)"
+      "Bash(curl -s http://localhost:8081/docs)",
+      "Bash(git rm *)",
+      "Bash(gh pr create --title 'feat: 机场→电商全量重构 + Phase 1 商业化落地' --body ' *)",
+      "Bash(dir \"C:\\\\Users\\\\xu\\\\PycharmProjects\\\\smart-customer-service-system\\\\CLAUDE_PROMPT.md\")",
+      "Bash(findstr F821)",
+      "Bash(findstr \"E741 F811 B025 B904 E722\")",
+      "Bash(findstr E402)",
+      "Bash(findstr /i \"ERROR WARN CRITICAL\" \"C:\\\\Users\\\\xu\\\\.claude\\\\debug\\\\ab697d38-4a21-4e2a-b9a1-fdac84a86e52.txt\")",
+      "Bash(findstr /v \"DEBUG\")",
+      "Bash(tail -100 logs/agents/app_20260430.log)",
+      "Bash(powershell -Command \"Get-Content logs/agents/app_20260430.log -Tail 100\")",
+      "Bash(findstr /i \"ADMIN\\\\|PASSWORD\\\\|13800000001\" .env)",
+      "Bash(findstr /b \"DB_\" .env)",
+      "Bash(findstr /b \"POSTGRES\" .env)",
+      "Bash(git checkout *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8081/health)"
     ]
   }
 }

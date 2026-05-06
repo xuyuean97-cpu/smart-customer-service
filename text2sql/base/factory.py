@@ -38,7 +38,7 @@ class AsyncStorageFactory:
 
         except (ImportError, AttributeError) as e:
             logger.error(f"创建异步向量存储失败: {str(e)}")
-            raise ValueError(f"不支持的向量存储类型: {storage_type}, 错误: {str(e)}")
+            raise ValueError(f"不支持的向量存储类型: {storage_type}, 错误: {str(e)}") from None
 
 class AsyncDBFactory:
     """异步数据库连接器工厂"""
@@ -57,7 +57,7 @@ class AsyncDBFactory:
             await connector.connect()
             return connector
         except (ImportError, AttributeError) as e:
-            raise ValueError(f"不支持的数据库类型: {db_type}，错误：{str(e)}")
+            raise ValueError(f"不支持的数据库类型: {db_type}，错误：{str(e)}") from None
 
 
 class AsyncSmartSqlFactory:

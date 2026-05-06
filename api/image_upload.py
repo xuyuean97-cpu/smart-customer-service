@@ -52,10 +52,10 @@ async def upload_image(request: Request, file: UploadFile = File(...)):
 
     except ValueError as e:
         logger.error(f"❌ 图片验证失败: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"❌ 图片上传失败: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="图片上传失败")
+        raise HTTPException(status_code=500, detail="图片上传失败") from e
 
 @image_router.post("/upload-base64")
 async def upload_image_base64(request: Request):
@@ -93,10 +93,10 @@ async def upload_image_base64(request: Request):
 
     except ValueError as e:
         logger.error(f"❌ 图片验证失败: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"❌ 图片上传失败: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="图片上传失败")
+        raise HTTPException(status_code=500, detail="图片上传失败") from e
 
 @image_router.delete("/delete")
 async def delete_image(file_path: str):
@@ -121,4 +121,4 @@ async def delete_image(file_path: str):
 
     except Exception as e:
         logger.error(f"❌ 图片删除失败: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="图片删除失败")
+        raise HTTPException(status_code=500, detail="图片删除失败") from e

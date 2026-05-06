@@ -1,8 +1,10 @@
 """
 运营仪表盘 API — 用量统计、对话趋势、性能指标
 """
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from pydantic import BaseModel, Field
+from api.middleware import verify_admin_token
+from api.response import ok, fail
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
 
@@ -100,8 +102,8 @@ async def _count_conversations(tenant_id: str, days: int = 30) -> int:
 
 # ---------- Endpoints ----------
 
-@router.get("/dashboard/overview", response_model=DashboardOverview)
-async def dashboard_overview(tenant_id: str = Query("default", description="租户ID")):
+@router.get("/dashboard/overview")
+async def dashboard_overview(tenant_id: str = Query("default", description="租户ID"), _: str = Depends(verify_admin_token)):
     """运营概览 — 总对话数、活跃用户、质量评分"""
     mm = _get_memory_manager()
     history = await mm.get_conversation_history(tenant_id=tenant_id, limit=10000)
@@ -122,20 +124,21 @@ async def dashboard_overview(tenant_id: str = Query("default", description="租�
         if qs:
             qualities.append(float(qs))
 
-    return DashboardOverview(
+    return ok(DashboardOverview(
         tenant_id=tenant_id,
         total_conversations=total,
         active_users_today=len(active_users),
         avg_quality_score=round(sum(qualities) / len(qualities), 3) if qualities else 0.0,
         resolution_rate=round(resolutions / total, 3) if total else 0.0,
         human_transfer_rate=round(transfers / total, 3) if total else 0.0,
-    )
+    ).model_dump())
 
 
-@router.get("/dashboard/conversations/trend", response_model=ConversationTrendResponse)
+@router.get("/dashboard/conversations/trend")
 async def conversations_trend(
     tenant_id: str = Query("default", description="租户ID"),
     days: int = Query(7, ge=1, le=90, description="统计天数"),
+    _: str = Depends(verify_admin_token),
 ):
     """对话趋势 — 按日期统计对话量和质量"""
     mm = _get_memory_manager()
@@ -176,11 +179,11 @@ async def conversations_trend(
             avg_quality=round(sum(qs_list) / len(qs_list), 3) if qs_list else 0.0,
         ))
 
-    return ConversationTrendResponse(tenant_id=tenant_id, days=days, points=points)
+    return ok(ConversationTrendResponse(tenant_id=tenant_id, days=days, points=points).model_dump())
 
 
-@router.get("/dashboard/performance", response_model=PerformanceMetrics)
-async def performance_metrics(tenant_id: str = Query("default", description="租户ID")):
+@router.get("/dashboard/performance")
+async def performance_metrics(tenant_id: str = Query("default", description="租户ID"), _: str = Depends(verify_admin_token)):
     """性能指标 — 解决率、转人工率、质量评分"""
     mm = _get_memory_manager()
     history = await mm.get_conversation_history(tenant_id=tenant_id, limit=10000)
@@ -198,20 +201,21 @@ async def performance_metrics(tenant_id: str = Query("default", description="租
         if response:
             resp_lengths.append(len(response))
 
-    return PerformanceMetrics(
+    return ok(PerformanceMetrics(
         tenant_id=tenant_id,
         total_conversations=total,
         avg_quality_score=round(sum(qualities) / len(qualities), 3) if qualities else 0.0,
         avg_response_length=round(sum(resp_lengths) / len(resp_lengths), 1) if resp_lengths else 0.0,
         resolution_rate=0.0,
         human_transfer_rate=0.0,
-    )
+    ).model_dump())
 
 
-@router.get("/dashboard/users/top", response_model=TopUsersResponse)
+@router.get("/dashboard/users/top")
 async def top_users(
     tenant_id: str = Query("default", description="租户ID"),
     limit: int = Query(10, ge=1, le=100, description="返回数量"),
+    _: str = Depends(verify_admin_token),
 ):
     """活跃用户排行 — 按对话数排序"""
     mm = _get_memory_manager()
@@ -241,11 +245,11 @@ async def top_users(
         for uid, stats in sorted_users
     ]
 
-    return TopUsersResponse(tenant_id=tenant_id, limit=limit, users=users)
+    return ok(TopUsersResponse(tenant_id=tenant_id, limit=limit, users=users).model_dump())
 
 
 @router.get("/reports/operational")
-async def operational_report(tenant_id: str = Query("default", description="租户ID")):
+async def operational_report(tenant_id: str = Query("default", description="租户ID"), _: str = Depends(verify_admin_token)):
     """运营报告 — 复用 OperationalAnalyticsEngine"""
     try:
         from agents.ecommerce_service.context_engineering.profile.operational_analytics import (
@@ -258,16 +262,17 @@ async def operational_report(tenant_id: str = Query("default", description="租�
         else:
             data = {"error": "无法序列化报告"}
         data["tenant_id"] = tenant_id
-        return data
+        return ok(data)
     except Exception as e:
         logger.error(f"生成运营报告失败: {e}")
-        return {"error": str(e), "tenant_id": tenant_id}
+        return fail(500, str(e))
 
 
-@router.get("/billing/usage", response_model=UsageSummary)
+@router.get("/billing/usage")
 async def billing_usage(
     tenant_id: str = Query("default", description="租户ID"),
     days: int = Query(30, ge=1, le=365, description="统计天数"),
+    _: str = Depends(verify_admin_token),
 ):
     """用量统计 — Token 消耗汇总"""
     from auth.database import SessionLocal
@@ -297,13 +302,13 @@ async def billing_usage(
             by_date[date_str]["tokens"] += r.tokens_in + r.tokens_out
             by_date[date_str]["requests"] += 1
 
-        return UsageSummary(
+        return ok(UsageSummary(
             tenant_id=tenant_id,
             total_tokens_in=total_in,
             total_tokens_out=total_out,
             total_requests=total_requests,
             by_model=by_model,
             by_date=[{"date": k, **v} for k, v in sorted(by_date.items())],
-        )
+        ).model_dump())
     finally:
         db.close()

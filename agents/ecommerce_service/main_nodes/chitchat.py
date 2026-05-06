@@ -1,30 +1,19 @@
 """
-闲聊节点
+电商闲聊与基础问候处理节点
 """
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
-from agents.ecommerce_service.state import EcommerceMainServiceState
+from datetime import datetime
+
 from langchain_core.runnables import RunnableConfig
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import AIMessage
-from datetime import datetime
-from agents.ecommerce_service.core import filter_messages_for_agent, max_msg_len,base_model
+
+from agents.ecommerce_service.state import EcommerceMainServiceState
+from agents.ecommerce_service.core import filter_messages_for_agent, max_msg_len, base_model
 from agents.ecommerce_service.context_engineering.prompts import main_graph_prompts
 from agents.ecommerce_service.context_engineering.agent_memory import memory_enabled_agent
 from common.logging import get_logger
-
-logger = get_logger("agents.main-nodes.chitchat")
-"""
-电商闲聊与基础问候处理节点
-"""
-import sys
-import os
-
-# 导入电商版状态
-from ..state import EcommerceMainServiceState
-from common.logging import get_logger
 from auth.context import get_current_user_global
+
 logger = get_logger("agents.main-nodes.chitchat")
 
 @memory_enabled_agent(application_id="电商主智能客服")

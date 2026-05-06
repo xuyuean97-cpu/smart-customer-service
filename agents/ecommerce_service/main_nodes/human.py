@@ -63,15 +63,8 @@ async def _create_transfer_ticket(
     """在数据库中创建工单"""
     try:
         import asyncpg
-        import os as _os
-        conn = await asyncpg.connect(
-            host=_os.getenv("DB_HOST", "47.106.22.90"),
-            port=int(_os.getenv("DB_PORT", "5432")),
-            user=_os.getenv("DB_USER", "postgres"),
-            password=_os.getenv("DB_PASSWORD", "123456"),
-            database=_os.getenv("DB_DATABASE", "test"),
-            timeout=10,
-        )
+        from config.db import get_db_config
+        conn = await asyncpg.connect(**get_db_config())
         try:
             from datetime import datetime
             ticket_id = str(uuid.uuid4())

@@ -283,13 +283,17 @@ class TrendAnalyzer:
         return trends
 
     def _calculate_trend(self, values: List[float]) -> str:
-        if len(values) < 2: return "数据不足"
+        if len(values) < 2:
+            return "数据不足"
         recent_avg = sum(values[-3:]) / len(values[-3:]) if len(values) >= 3 else values[-1]
         earlier_avg = sum(values[:-3]) / len(values[:-3]) if len(values) > 3 else values[0]
 
-        if recent_avg > earlier_avg * 1.05: return "上升趋势"
-        elif recent_avg < earlier_avg * 0.95: return "下降趋势"
-        else: return "稳定"
+        if recent_avg > earlier_avg * 1.05:
+            return "上升趋势"
+        elif recent_avg < earlier_avg * 0.95:
+            return "下降趋势"
+        else:
+            return "稳定"
 
 class OperationalAnalyticsEngine:
     """电商优化版运营分析主引擎"""

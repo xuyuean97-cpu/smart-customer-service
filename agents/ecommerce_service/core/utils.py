@@ -4,6 +4,7 @@
 """
 from typing import Dict, List
 import re
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from config.utils import config_manager
 from common.logging import get_logger
 # 从配置文件获取模型配置
@@ -19,14 +20,9 @@ KB_SIMILARITY_THRESHOLD = float(_text2kb_config.get("kb_similarity_threshold"))
 emotion = config_manager.get_agents_config().get("emotions","tabularisai/multilingual-sentiment-analysis")
 logger = get_logger("agents.utils")
 
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-import logging
 
-logger = logging.getLogger("agents.utils")
 
-import logging
 
-logger = logging.getLogger("agents.utils")
 
 def filter_messages_for_agent(state: Dict, turn_count: int = 5, agent_role: str = "user") -> List:
     """

@@ -15,15 +15,12 @@ logger = get_logger("api.ticket")
 
 router = APIRouter(prefix="/api/v1/tickets", tags=["工单系统"])
 
-# DB 连接（复用现有配置）
-_DB_CONFIG = {
-    "host": "47.106.22.90", "port": 5432,
-    "user": "postgres", "password": "123456", "database": "test",
-}
+from config.db import get_db_config  # noqa: E402
 
 
 async def _get_conn():
-    return await asyncpg.connect(**_DB_CONFIG, timeout=10)
+    cfg = get_db_config()
+    return await asyncpg.connect(**cfg)
 
 
 def _row_to_response(row) -> TicketResponse:

@@ -64,6 +64,14 @@ class LoggerManager:
         file_handler.setFormatter(logging.Formatter(format_string))
         root_logger.addHandler(file_handler)
 
+        # ---- 强制 uvicorn / fastapi 日志走同一套文件 handler ----
+        # 默认情况下 uvicorn.error 只输出到 stderr，不写文件，导致 500 报错在日志里找不到
+        for _name in ('uvicorn', 'uvicorn.error', 'uvicorn.access', 'uvicorn.asgi', 'fastapi'):
+            _uv_logger = logging.getLogger(_name)
+            _uv_logger.handlers.clear()         # 移除 uvicorn 自带 handler
+            _uv_logger.propagate = True          # 交给 root logger → 文件 + 控制台
+            _uv_logger.setLevel(root_logger.level)
+
         cls._initialized = True
 
     @classmethod

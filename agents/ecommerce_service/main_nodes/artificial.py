@@ -15,14 +15,14 @@ _HF_MIRROR = "https://hf-mirror.com"
 os.environ.setdefault("HF_ENDPOINT", _HF_MIRROR)
 os.environ.setdefault("HF_HUB_ENDPOINT", _HF_MIRROR)  # huggingface_hub >= 0.26 用这个变量名
 
-from langchain_core.runnables import RunnableConfig
-from langgraph.store.base import BaseStore
-import torch
-from transformers import pipeline
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from agents.ecommerce_service.state import EcommerceMainServiceState
-from agents.ecommerce_service.core import emotion
-from common.logging import get_logger
+from langchain_core.runnables import RunnableConfig  # noqa: E402
+from langgraph.store.base import BaseStore  # noqa: E402
+import torch  # noqa: E402
+from transformers import pipeline  # noqa: E402
+from transformers import AutoTokenizer, AutoModelForSequenceClassification  # noqa: E402
+from agents.ecommerce_service.state import EcommerceMainServiceState  # noqa: E402
+from agents.ecommerce_service.core import emotion  # noqa: E402
+from common.logging import get_logger  # noqa: E402
 
 # 获取情感识别节点专用日志记录器
 logger = get_logger("agents.main-nodes.artificial")

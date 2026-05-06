@@ -58,7 +58,7 @@ class ExpertReviewRequest(BaseModel):
 
 class BatchExpertReviewRequest(BaseModel):
     """批量专家审核请求"""
-    review_items: List[ExpertReviewRequest] = Field(..., description="审核项目列表", max_items=1000)
+    review_items: List[ExpertReviewRequest] = Field(..., description="审核项目列表", max_length=1000)
 
 
 class UserProfileResponse(BaseModel):
@@ -132,7 +132,7 @@ async def get_conversation_history(
                 from datetime import timezone
                 start_datetime = start_datetime.replace(tzinfo=timezone.utc)
             except ValueError:
-                raise HTTPException(status_code=400, detail="开始日期格式错误，请使用 YYYY-MM-DD 格式")
+                raise HTTPException(status_code=400, detail="开始日期格式错误，请使用 YYYY-MM-DD 格式") from None
 
         if end_date:
             try:
@@ -142,7 +142,7 @@ async def get_conversation_history(
                 from datetime import timezone
                 end_datetime = end_datetime.replace(tzinfo=timezone.utc)
             except ValueError:
-                raise HTTPException(status_code=400, detail="结束日期格式错误，请使用 YYYY-MM-DD 格式")
+                raise HTTPException(status_code=400, detail="结束日期格式错误，请使用 YYYY-MM-DD 格式") from None
 
         # 获取对话历史
         conversations = await memory_manager.get_conversation_history(
@@ -662,3 +662,54 @@ async def user_feedback_conversation(request: UserFeedbackRequest):
                 "user_approved": request.user_approved
             }
         }
+
+
+# ── 批量注入测试对话（仅开发/测试环境使用） ──
+from pydantic import BaseModel as PydanticBaseModel, Field as PydanticField  # noqa: E402
+
+class InjectConversationRequest(PydanticBaseModel):
+    user_id: str = PydanticField(..., description="用户 ID")
+    messages: list[dict] = PydanticField(..., description="对话列表 [{query, response, quality_score, days_ago}]")
+    application_id: str = PydanticField(default="电商主智能客服")
+    tenant_id: str = PydanticField(default="default")
+
+
+@router.post("/conversations/inject-batch")
+async def inject_conversations_batch(request: InjectConversationRequest):
+    """
+    批量注入测试对话 — 绕过 ChromaDB 外部连接，复用服务端已初始化的 memory_manager
+    """
+    import uuid as _uuid
+    from datetime import datetime as _dt, timedelta as _td
+
+    stored = 0
+    errors = []
+    for item in request.messages:
+        try:
+            days_ago = item.get("days_ago", 0)
+            created_at = _dt.now() - _td(days=days_ago)
+            await memory_manager.store_conversation(
+                application_id=request.application_id,
+                user_id=request.user_id,
+                run_id=str(_uuid.uuid4()),
+                agent_id="电商主智能客服",
+                messages=item["query"],
+                response=item["response"],
+                metadata={
+                    "created_at": created_at.isoformat(),
+                    "quality_score": item.get("quality_score", 0.0),
+                    "source": "微信小程序",
+                    "device": "iPhone 15 Pro",
+                    "tenant_id": request.tenant_id,
+                },
+                tenant_id=request.tenant_id,
+            )
+            stored += 1
+        except Exception as e:
+            errors.append(str(e))
+
+    return {
+        "ret_code": "000000" if not errors else "000001",
+        "ret_msg": f"注入完成: {stored}/{len(request.messages)}",
+        "data": {"stored": stored, "errors": errors},
+    }

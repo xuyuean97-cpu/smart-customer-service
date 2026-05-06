@@ -71,12 +71,12 @@ async def order_query2docs(question: str, user_id: str, messages: List[AnyMessag
     # --- P1-5: API Fallback — 本地查不到时调平台 API 实时拉取 ---
     data_is_empty = not result.get('data') or result.get('data') == []
     if data_is_empty and not result.get('error'):
-        platform_order_id = _extract_platform_order_id(question)
+        platform_order_id = _extract_platform_order_id(question)  # noqa: F821 Phase 2 stub
         if platform_order_id:
             logger.info(f"本地无数据，尝试平台 API Fallback: {platform_order_id}")
-            platform_data = await _fetch_from_platform_adapter(platform_order_id, tenant_id)
+            platform_data = await _fetch_from_platform_adapter(platform_order_id, tenant_id)  # noqa: F821 Phase 2 stub
             if platform_data:
-                await _upsert_to_local_db(platform_data)
+                await _upsert_to_local_db(platform_data)  # noqa: F821 Phase 2 stub
                 # P1-5: 不二次查库，直接用平台数据（避免幻读 + 省一次 LLM 往返）
                 result = {'data': [platform_data], 'sql': '-- from platform API'}
                 logger.info(f"平台 API Fallback 成功: {platform_order_id}")

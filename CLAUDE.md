@@ -4,7 +4,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Smart Customer Service System (智能客服系统) v0.1.4 — an open-source, multi-agent intelligent customer service system built with **LangGraph** and **FastAPI**. Originally designed for the airport/aviation domain, currently being **actively refactored** into an e-commerce service system. The refactoring is in progress: old airport-domain code is commented out alongside new e-commerce code, and class/function renames are ongoing (e.g. `AirportMainServiceState` → `EcommerceMainServiceState`, `flight.py` → order logistics, `airport.py` → product info).
+Smart Customer Service System (智能客服系统) v0.1.4 — an open-source, multi-agent e-commerce intelligent customer service system built with **LangGraph** and **FastAPI**. Supports multi-tenant, order/logistics queries via Text2SQL, WeChat/mini-program channel access, and multi-platform API integration (JD, Taobao, etc.).
+
+## Coding Standards (CRITICAL)
+
+These principles are non-negotiable. Every code change must respect them.
+
+### 1. Clean Code & Architecture
+- **Single Responsibility**: Files over 300 lines must be split. Classes/functions over 80 lines need justification.
+- **Type Hints**: All function signatures must use strict Python 3.12+ type hints (`dict[str, Any]`, `Sequence[T]`, `Callable[[X], Y]`). No bare `dict`/`list`.
+- **Docstrings**: Google-style for all public functions. Include `Args:`, `Returns:`, `Raises:` sections.
+
+### 2. AI & Agent Workflow
+- **LangGraph nodes** should be pure-ish functions or single-responsibility classes. Inject dependencies, don't hardcode.
+- **LLM output parsing** MUST use Pydantic validation. Every parse site must catch `ValidationError` and have a retry/fallback strategy — never let a malformed LLM response crash the node silently.
+- **Text2SQL results** must be validated before execution. Reject destructive statements (DROP, DELETE, TRUNCATE).
+
+### 3. Concurrency & Performance
+- **Zero tolerance for blocking `asyncio` event loop**. No `requests`, no sync DB drivers, no `time.sleep()`. Use `aiohttp`, `asyncpg`, `asyncio.sleep()`.
+- **Every external call** (LLM API, ChromaDB, Redis, PostgreSQL, third-party APIs) must have an explicit timeout and a circuit-breaker/fallback.
+- **Parallel I/O** via `asyncio.gather()` or `asyncio.TaskGroup` wherever independent calls can be made concurrently.
+
+### 4. Defensive Programming
+- **Never trust external input**: LLM output, API responses, WebSocket messages, callback payloads — all must be validated before use.
+- **Every external call** must be wrapped in `try...except` with structured logging (`logger.error(..., exc_info=True)`). Never `except: pass`.
+- **SQL injection prevention**: all Text2SQL queries use parameterized placeholders (`$1, $2`), never string concatenation.
+- **Data masking**: never log or store plaintext phone numbers, addresses, or real names. Use masked placeholders (`138****0001`, `张**`).
 
 ## Commands
 
@@ -19,7 +44,7 @@ uv run main.py
 uv run python <path/to/file.py>
 ```
 
-There is no test suite yet (`pytest` and `pytest-asyncio` are in dependencies but no `tests/` directory exists).
+Tests live in `tests/` with 48 cases across 6 files. Run with `uv run pytest tests/ -v` or a single file: `uv run pytest tests/test_schemas.py -v`.
 
 ## Architecture
 
@@ -88,7 +113,7 @@ All services in the architecture are **external** and can be run locally or via 
 
 ### Domain Module Mapping
 
-The refactoring maps airport-domain concepts to e-commerce concepts. Source files still use old names but expose new function names:
+Domain routing through source files (retained old filenames for git history, function names are e-commerce):
 
 | File (old name) | New Function Names | Domain |
 |---|---|---|
@@ -108,3 +133,8 @@ The refactoring maps airport-domain concepts to e-commerce concepts. Source file
 - **Retry policies** on all graph nodes — 3 attempts for I/O nodes (translation, emotion), 5 attempts for core processing nodes.
 - **Prompt templates** live in `agents/ecommerce_service/context_engineering/prompts/` as Python files returning template strings, not separate template files.
 - **`uv`** is the package manager, using Aliyun PyPI mirror for faster installs in China.
+- **Unified API response format**: all endpoints return `{code: 0, message: "ok", data: {...}}` via `api/response.py` helpers `ok()` and `fail()`.
+- **Rate limiting**: `slowapi` with global 100/min default, 10/min on dashboard/admin endpoints. Per-endpoint overrides via `@limiter.limit(...)`.
+- **API authentication**: `api/middleware.py` provides `Depends(verify_api_key)` for dashboard/management endpoints that need API-key auth.
+- **Data sourcing (Hybrid)**: Text2SQL queries local PostgreSQL first; if stale or empty, falls back to platform API (JD/Taobao) via `EcommercePlatformAdapter`, then UPSERTs to local DB.
+- **Platform abstraction**: `agents/ecommerce_service/channels/platforms/__init__.py` defines the `EcommercePlatformAdapter` ABC with TTLCache + `asyncio.Lock` (DCL pattern) for cache stampede prevention.

@@ -342,7 +342,8 @@ class ProfileExtractor:
         total_interactions = sum(p.interaction_metrics.total_sessions for p in daily_profiles)
         days_span = len(daily_profiles)
 
-        if days_span == 0: return ShoppingPattern()
+        if days_span == 0:
+            return ShoppingPattern()
 
         # 根据互动频次粗略估算购物活跃度
         daily_rate = total_interactions / days_span
@@ -426,8 +427,8 @@ def create_profile_extractor(llm_client: Optional[ChatOpenAI] = None) -> Profile
             # 指向你的全局大模型实例
             from agents.ecommerce_service.core import structed_model
             llm_client = structed_model
-        except ImportError:
-            raise ImportError("初始化 ProfileExtractor 失败，请检查 LLM 模型配置")
+        except ImportError as err:
+            raise ImportError("初始化 ProfileExtractor 失败，请检查 LLM 模型配置") from err
 
     return ProfileExtractor(llm_client)
 

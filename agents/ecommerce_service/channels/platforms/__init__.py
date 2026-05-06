@@ -12,7 +12,7 @@ from cachetools import TTLCache
 
 from .. import ChannelMessage
 from models.platform_order import (
-    UnifiedOrder, UnifiedLogistics, PlatformCredential, PlatformMessage
+    UnifiedOrder, UnifiedLogistics, PlatformCredential  # PlatformMessage reserved for Phase 2
 )
 from common.logging import get_logger
 
@@ -123,6 +123,7 @@ class EcommercePlatformAdapter(ABC):
 
     # ===== 可选覆盖 =====
 
+    @abstractmethod
     async def start_listener(self) -> None:
         """
         P1-7: 启动消息监听器（用于长连接平台如淘宝 TMC）
@@ -134,3 +135,4 @@ class EcommercePlatformAdapter(ABC):
         """内部转发消息到 AI 图处理"""
         from api.wechat_callback import _forward_to_graph
         await _forward_to_graph(msg)
+__all__ = ['models.platform_order.PlatformMessage']

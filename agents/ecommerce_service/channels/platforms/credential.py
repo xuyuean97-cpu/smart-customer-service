@@ -20,15 +20,8 @@ async def get_credentials(tenant_id: str) -> Dict[str, PlatformCredential]:
     """获取租户的所有平台凭据"""
     try:
         import asyncpg
-        import os
-        conn = await asyncpg.connect(
-            host=os.getenv("DB_HOST", "47.106.22.90"),
-            port=int(os.getenv("DB_PORT", "5432")),
-            user=os.getenv("DB_USER", "postgres"),
-            password=os.getenv("DB_PASSWORD", "123456"),
-            database=os.getenv("DB_DATABASE", "test"),
-            timeout=10,
-        )
+        from config.db import get_db_config
+        conn = await asyncpg.connect(**get_db_config())
         try:
             row = await conn.fetchrow(
                 "SELECT config FROM tenants WHERE id = $1", tenant_id

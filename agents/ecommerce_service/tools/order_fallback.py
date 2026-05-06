@@ -35,15 +35,8 @@ async def upsert_to_local_db(order_data: dict):
     """将平台订单数据 UPSERT 到本地 orders 表"""
     try:
         import asyncpg
-        import os
-        conn = await asyncpg.connect(
-            host=os.getenv("DB_HOST", "47.106.22.90"),
-            port=int(os.getenv("DB_PORT", "5432")),
-            user=os.getenv("DB_USER", "postgres"),
-            password=os.getenv("DB_PASSWORD", "123456"),
-            database=os.getenv("DB_DATABASE", "test"),
-            timeout=10,
-        )
+        from config.db import get_db_config
+        conn = await asyncpg.connect(**get_db_config())
         try:
             await conn.execute(
                 """INSERT INTO orders (order_id, tenant_id, user_id, product_name,

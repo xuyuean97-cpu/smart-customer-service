@@ -84,7 +84,7 @@ async def extract_session_profile(request: SessionExtractionRequest):
 
     except Exception as e:
         logger.error(f"会话画像提取API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.post("/extract/session/async", response_model=ProfileResponse)
 async def extract_session_profile_async(
@@ -118,7 +118,7 @@ async def extract_session_profile_async(
 
     except Exception as e:
         logger.error(f"异步会话画像提取API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.post("/aggregate/daily", response_model=ProfileResponse)
 async def aggregate_daily_profile(request: DailyAggregationRequest):
@@ -154,7 +154,7 @@ async def aggregate_daily_profile(request: DailyAggregationRequest):
 
     except Exception as e:
         logger.error(f"每日聚合API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.post("/analyze/deep", response_model=ProfileResponse)
 async def analyze_deep_insight(request: DeepAnalysisRequest):
@@ -190,7 +190,7 @@ async def analyze_deep_insight(request: DeepAnalysisRequest):
 
     except Exception as e:
         logger.error(f"深度分析API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.post("/extract/batch", response_model=ProfileResponse)
 async def batch_extract_profiles(
@@ -222,7 +222,7 @@ async def batch_extract_profiles(
 
     except Exception as e:
         logger.error(f"批量提取API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.get("/query/{user_id}", response_model=ProfileResponse)
 async def query_user_profile(user_id: str):
@@ -261,7 +261,7 @@ async def query_user_profile(user_id: str):
 
     except Exception as e:
         logger.error(f"画像查询API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.get("/conversation/{application_id}/{user_id}/{run_id}")
 async def get_conversation_history(
@@ -302,7 +302,7 @@ async def get_conversation_history(
 
     except Exception as e:
         logger.error(f"会话历史查询API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.post("/trigger/auto")
 async def trigger_auto_extraction(
@@ -337,7 +337,7 @@ async def trigger_auto_extraction(
 
     except Exception as e:
         logger.error(f"自动提取API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 # ============================== 后台任务函数 ==============================
 
@@ -444,7 +444,7 @@ async def health_check():
 
     except Exception as e:
         logger.error(f"健康检查失败: {str(e)}")
-        raise HTTPException(status_code=503, detail="服务不可用")
+        raise HTTPException(status_code=503, detail="服务不可用") from e
 
 @profile_router.get("/status")
 async def service_status():
@@ -474,4 +474,4 @@ async def service_status():
 
     except Exception as e:
         logger.error(f"状态查询失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务错误")
+        raise HTTPException(status_code=500, detail="内部服务错误") from e

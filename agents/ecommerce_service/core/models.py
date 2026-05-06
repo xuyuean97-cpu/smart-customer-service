@@ -37,6 +37,17 @@ base_model = ChatOpenAI(
     openai_api_key=llm_model_config.get("api_key"),
     openai_api_base=llm_model_config.get("base_url")
 )
+
+# DeepSeek 思考模式默认开启时不支持 tool_choice，此实例显式关思考用于 structured output
+_content_config_no_thinking = llm_model_config.get("no_thinking_override", {})
+content_model_no_thinking = ChatOpenAI(
+    model_name=_content_config_no_thinking.get("model", llm_model_config.get("model")),
+    temperature=_content_config_no_thinking.get("temperature", 0.3),
+    openai_api_key=llm_model_config.get("api_key"),
+    openai_api_base=llm_model_config.get("base_url"),
+    extra_body={"thinking": {"type": "disabled"}},
+    streaming=False,
+)
 structed_model = ChatOpenAI(
     model_name=llm_model_config.get("router_model"),
     temperature=llm_model_config.get("router_temperature", 0.7),

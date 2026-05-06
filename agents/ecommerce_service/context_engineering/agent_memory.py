@@ -44,10 +44,14 @@ class AgentMemoryMixin:
     ) -> Optional[str]:
         try:
             def get_text(obj):
-                if isinstance(obj, str): return obj
-                if hasattr(obj, 'content'): return str(obj.content)
-                if isinstance(obj, list) and len(obj) > 0: return get_text(obj[-1])
-                if isinstance(obj, dict): return str(obj.get('content', str(obj)))
+                if isinstance(obj, str):
+                    return obj
+                if hasattr(obj, 'content'):
+                    return str(obj.content)
+                if isinstance(obj, list) and len(obj) > 0:
+                    return get_text(obj[-1])
+                if isinstance(obj, dict):
+                    return str(obj.get('content', str(obj)))
                 return str(obj)
 
             safe_user_id = str(user_id)

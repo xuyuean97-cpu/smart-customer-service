@@ -16,19 +16,39 @@ os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 os.environ.setdefault("HF_HUB_ENDPOINT", "https://hf-mirror.com")
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from contextlib import asynccontextmanager
-import warnings
+# Starlette Config 在 Windows 上用 GBK 读 .env 会崩溃，必须在 import fastapi 之前打补丁
+import starlette.config as _starlette_config
+_original_read_file = _starlette_config.Config._read_file
+@staticmethod
+def _utf8_read_file(file_name):
+    file_values = {}
+    try:
+        with open(file_name, encoding="utf-8") as input_file:
+            for line in input_file.readlines():
+                line = line.strip()
+                if "=" in line and not line.startswith("#"):
+                    key, value = line.split("=", 1)
+                    key = key.strip()
+                    value = value.strip().strip("\"'")
+                    file_values[key] = value
+    except FileNotFoundError:
+        pass
+    return file_values
+_starlette_config.Config._read_file = _utf8_read_file
 
-from agents.ecommerce_service import graph_manager, build_ecommerce_service_graph,build_question_recommend_graph,build_business_recommend_graph
-from agents.ecommerce_service.context_engineering.scheduler import start_memory_scheduler, stop_memory_scheduler
-from agents.ecommerce_service.context_engineering.memory_manager import memory_manager
-from common.logging import setup_logger, get_logger
-from config.factory import get_logger_config, get_app_config, get_directories_config
-from api.router import api_router  # 导入API路由器
-from auth import router as auth_router, models as auth_models, database as auth_database
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+from contextlib import asynccontextmanager  # noqa: E402
+import warnings  # noqa: E402
+
+from agents.ecommerce_service import graph_manager, build_ecommerce_service_graph,build_question_recommend_graph,build_business_recommend_graph  # noqa: E402
+from agents.ecommerce_service.context_engineering.scheduler import start_memory_scheduler, stop_memory_scheduler  # noqa: E402
+from agents.ecommerce_service.context_engineering.memory_manager import memory_manager  # noqa: E402
+from common.logging import setup_logger, get_logger  # noqa: E402
+from config.factory import get_logger_config, get_app_config, get_directories_config  # noqa: E402
+from api.router import api_router  # 导入API路由器  # noqa: E402
+from auth import router as auth_router, models as auth_models, database as auth_database  # noqa: E402
 warnings.filterwarnings("ignore")
 
 # 获取日志配置并设置日志
@@ -103,7 +123,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# 添加CORS中间件
+# CORS
 cors_origins = app_config.get("cors_origins", ["*"])
 app.add_middleware(
     CORSMiddleware,
@@ -113,10 +133,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 请求限流 (防刷 / 防账单爆炸)
+from slowapi import Limiter, _rate_limit_exceeded_handler  # noqa: E402
+from slowapi.util import get_remote_address  # noqa: E402
+from slowapi.errors import RateLimitExceeded  # noqa: E402
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="static"), name="static")
 # 管理后台 SPA (Vue 3 + Element Plus) — 仅在已构建时启用
-import os as _os
+import os as _os  # noqa: E402
 _admin_dist = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "admin", "dist")
 if _os.path.exists(_admin_dist):
     # 1. 先挂载静态资源 (js/css/assets)
@@ -152,4 +180,17 @@ if __name__ == "__main__":
     # view_graph()
     host = app_config.get("host", "0.0.0.0")
     port = app_config.get("port", 8081)
-    uvicorn.run(app, host=host, port=port)  # 直接传递app对象而不是字符串
+
+    # uvicorn 默认会给自己配置独立的 handler（只写 stderr 不写文件）。
+    # 这里传空 handler + propagate=True，让所有 uvicorn 日志走 root logger 的 file handler
+    _uvicorn_log_config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {},
+        "loggers": {
+            "uvicorn":        {"handlers": [], "propagate": True, "level": "INFO"},
+            "uvicorn.error":  {"handlers": [], "propagate": True, "level": "INFO"},
+            "uvicorn.access": {"handlers": [], "propagate": True, "level": "INFO"},
+        },
+    }
+    uvicorn.run(app, host=host, port=port, log_config=_uvicorn_log_config)

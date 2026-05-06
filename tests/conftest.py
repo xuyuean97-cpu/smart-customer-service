@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # 加载 .env
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # noqa: E402
 _env_file = PROJECT_ROOT / ".env"
 if _env_file.exists():
     load_dotenv(_env_file)

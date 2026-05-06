@@ -48,20 +48,17 @@ class PostgresqlConnector(AsyncDBConnector):
             await self.pool.close()
             self.pool = None
 
-    async def run_sql(self, sql: str, **kwargs) -> Union[pd.DataFrame, Dict[str, Any]]:
+    async def run_sql(self, sql: str, *args, **kwargs) -> Union[pd.DataFrame, Dict[str, Any]]:
         """
-        异步执行SQL查询
-        只允许执行SELECT语句，其他语句视为破坏性语句
-        成功时返回DataFrame，失败时返回包含错误信息的字典
+        异步执行SQL查询 (参数化查询防注入: args 传递给 prepared statement)
         """
-        # 检查SQL语句类型，只允许SELECT语句
         sql_stripped = sql.strip().upper()
         if not sql_stripped.startswith('SELECT'):
             return {
                 "error": True,
-                "message": "用户正在执行破坏性操作。试图执行非SELECT语句",
+                "message": "只允许 SELECT 查询",
                 "exception_type": "SecurityError",
-                "sql": sql
+                "sql": sql,
             }
 
         if not self.pool:
@@ -69,9 +66,8 @@ class PostgresqlConnector(AsyncDBConnector):
 
         try:
             async with self.pool.acquire() as conn:
-                # 异步执行查询
                 stmt = await conn.prepare(sql)
-                rows = await stmt.fetch()
+                rows = await stmt.fetch(*args) if args else await stmt.fetch()
 
                 # 获取列名
                 columns = [desc.name for desc in stmt.get_attributes()]

@@ -307,7 +307,7 @@ class SessionMetricsCalculator:
             try:
                 start_time = datetime.fromisoformat(conversation_history[0].get('created_at', ''))
                 end_time = datetime.fromisoformat(conversation_history[-1].get('created_at', ''))
-            except:
+            except Exception:
                 start_time = datetime.now()
                 end_time = None
 

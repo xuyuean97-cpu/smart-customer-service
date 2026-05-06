@@ -225,7 +225,7 @@ async def ecommerce_chat_websocket(websocket: WebSocket):
                                         await websocket.send_text(json.dumps({"event": "form", "data": form_event.model_dump()}, ensure_ascii=False))
                                         # 表单发送后，通常不需要再发文本，直接 continue
                                         continue
-                                except:
+                                except Exception:
                                     pass # 解析失败，不是表单，继续后续逻辑
 
                             # [规则 3] 内容发送与安全清洗
@@ -263,16 +263,16 @@ async def ecommerce_chat_websocket(websocket: WebSocket):
         logger.error(f"WebSocket 全局异常: {e}", exc_info=True)
         try:
             await websocket.close()
-        except:
+        except Exception:
             pass
-from fastapi import Request
-import base64
-import struct
-import random
-import string
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
-from fastapi.responses import PlainTextResponse, JSONResponse
+from fastapi import Request  # noqa: E402
+import base64  # noqa: E402
+import struct  # noqa: E402
+import random  # noqa: E402
+import string  # noqa: E402
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes  # noqa: E402
+from cryptography.hazmat.backends import default_backend  # noqa: E402
+from fastapi.responses import PlainTextResponse, JSONResponse  # noqa: E402
 # ==========================================
 # 🔑 请务必填入你自己的 APPID 和 EncodingAESKey！
 # ==========================================
@@ -373,7 +373,8 @@ async def wechat_bot_callback(request: Request):
             INTERNAL_NODES =["router", "translate_input_node", "emotion_node", "images_thinking_node", "translate_output_node"]
             async for event in app.astream(input=graph_inputs, config=threads, stream_mode="updates"):
                 for node_name, node_output in event.items():
-                    if node_name in INTERNAL_NODES: continue
+                    if node_name in INTERNAL_NODES:
+                        continue
                     if isinstance(node_output, dict) and "messages" in node_output:
                         messages = node_output["messages"]
                         if messages and (hasattr(messages[-1], 'type') and messages[-1].type == 'ai'):

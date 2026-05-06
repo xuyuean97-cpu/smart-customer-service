@@ -54,7 +54,7 @@ async def get_text2sql_instance():
             logger.info("text2sql实例初始化成功")
         except Exception as e:
             logger.error(f"初始化text2sql实例时出错: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"初始化text2sql实例失败: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"初始化text2sql实例失败: {str(e)}") from e
 
     return _text2sql_instance
 
@@ -140,7 +140,7 @@ async def train_text2sql(training_request: TrainingRequest, request: Request, re
 
     except Exception as e:
         logger.error(f"训练过程中出错: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"训练失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"训练失败: {str(e)}") from e
 
 @router.post("/clear", response_model=ClearDataResponse)
 async def clear_training_data(clear_request: ClearDataRequest, request: Request, response: Response):
@@ -186,7 +186,7 @@ async def clear_training_data(clear_request: ClearDataRequest, request: Request,
 
     except Exception as e:
         logger.error(f"清除数据时出错: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"清除数据失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"清除数据失败: {str(e)}") from e
 
 async def load_excel_training_data(file_path: str, smart_sql):
     """
@@ -208,7 +208,7 @@ async def load_excel_training_data(file_path: str, smart_sql):
         import pandas as pd
     except ImportError:
         logger.error("无法加载Excel文件: 未安装pandas库")
-        raise HTTPException(status_code=400, detail="服务器未安装pandas库，无法处理Excel文件")
+        raise HTTPException(status_code=400, detail="服务器未安装pandas库，无法处理Excel文件") from None
 
     try:
         # 准备训练数据列表
@@ -296,10 +296,10 @@ async def load_excel_training_data(file_path: str, smart_sql):
 
     except FileNotFoundError:
         logger.error(f"找不到文件: {file_path}")
-        raise HTTPException(status_code=404, detail=f"找不到文件: {file_path}")
+        raise HTTPException(status_code=404, detail=f"找不到文件: {file_path}") from None
     except Exception as e:
         logger.error(f"加载Excel训练数据时出错: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"加载Excel训练数据失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"加载Excel训练数据失败: {str(e)}") from e
 
 @router.post("/train/excel", response_model=TrainingResponse)
 async def train_from_excel(
@@ -372,7 +372,7 @@ async def train_from_excel(
 
     except Exception as e:
         logger.error(f"Excel文件训练过程中出错: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Excel文件训练失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Excel文件训练失败: {str(e)}") from e
 
 @router.get("/status")
 async def get_training_status():
@@ -409,7 +409,7 @@ async def get_training_status():
 
     except Exception as e:
         logger.error(f"获取训练状态时出错: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"获取训练状态失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取训练状态失败: {str(e)}") from e
 
 @router.get("/health")
 async def health_check():

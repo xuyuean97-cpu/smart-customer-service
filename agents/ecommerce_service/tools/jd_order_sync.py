@@ -6,19 +6,10 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import asyncpg
-import os as _os
-
+from config.db import get_db_config
 from common.logging import get_logger
 
 logger = get_logger("tools.jd_order_sync")
-
-_DB = dict(
-    host=_os.getenv("DB_HOST", "47.106.22.90"),
-    port=int(_os.getenv("DB_PORT", "5432")),
-    user=_os.getenv("DB_USER", "postgres"),
-    password=_os.getenv("DB_PASSWORD", "123456"),
-    database=_os.getenv("DB_DATABASE", "test"),
-)
 
 
 # ===== 核心同步逻辑 =====
@@ -62,7 +53,7 @@ async def sync_jd_orders(
     adapter.credential = jd_cred
 
     # 2. 逐页拉取订单列表
-    conn = await asyncpg.connect(**_DB, timeout=10)
+    conn = await asyncpg.connect(**get_db_config())
     try:
         total_synced = 0
         page = 1
@@ -203,8 +194,8 @@ async def _upsert_order(conn, order: dict):
 
 # ===== API 端点 =====
 
-from fastapi import APIRouter, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Query  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
 
 router = APIRouter(prefix="/api/v1/platform/jd", tags=["京东订单同步"])
 
