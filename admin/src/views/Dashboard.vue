@@ -353,6 +353,32 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  transition: all 0.2s ease;
+  animation: cardFadeIn 0.4s ease-out backwards;
+}
+
+.stat-card:nth-child(1) { animation-delay: 0.05s; }
+.stat-card:nth-child(2) { animation-delay: 0.1s; }
+.stat-card:nth-child(3) { animation-delay: 0.15s; }
+.stat-card:nth-child(4) { animation-delay: 0.2s; }
+.stat-card:nth-child(5) { animation-delay: 0.25s; }
+.stat-card:nth-child(6) { animation-delay: 0.3s; }
+
+.stat-card:hover {
+  border-color: var(--accent-blue);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .stat-header {
@@ -661,12 +687,22 @@ onMounted(async () => {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
 }
 
 .action-card:hover {
   background: var(--bg-tertiary);
   border-color: var(--accent-blue);
+  transform: translateX(4px);
+}
+
+.action-card:hover .action-arrow {
+  transform: translateX(4px);
+  color: var(--accent-blue);
+}
+
+.action-card:active {
+  transform: translateX(2px);
 }
 
 .action-icon {
@@ -706,6 +742,7 @@ onMounted(async () => {
   width: 20px;
   height: 20px;
   color: var(--text-muted);
+  transition: all 0.2s ease;
 }
 
 @media (max-width: 1400px) {

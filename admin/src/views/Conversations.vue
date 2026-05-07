@@ -62,7 +62,7 @@
                   </svg>
                   {{ conv.quality_score }}
                 </span>
-                <span v-if="conv.metadata?.user_approved" class="approved-badge">
+                <span v-if="conv.user_approved" class="approved-badge">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3z"/>
                     <path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
@@ -250,11 +250,16 @@ loadHistory()
 .conversation-item {
   padding: 20px;
   border-bottom: 1px solid var(--border-color);
-  transition: background 0.15s ease;
+  transition: all 0.2s ease;
 }
 
 .conversation-item:hover {
   background: var(--bg-tertiary);
+}
+
+.conversation-item:hover .user-avatar {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .conversation-item:last-child {
@@ -288,6 +293,7 @@ loadHistory()
   color: white;
   font-size: 14px;
   font-weight: 600;
+  transition: all 0.2s ease;
 }
 
 .user-details {

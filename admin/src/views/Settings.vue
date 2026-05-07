@@ -241,6 +241,11 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 24px;
+  transition: all 0.2s ease;
+}
+
+.settings-card:hover {
+  border-color: rgba(59, 130, 246, 0.3);
 }
 
 .info-grid {
@@ -458,6 +463,11 @@
   justify-content: space-between;
   padding: 16px 0;
   border-bottom: 1px solid var(--border-color);
+  transition: all 0.15s ease;
+}
+
+.toggle-item:hover .toggle-info h4 {
+  color: var(--accent-blue);
 }
 
 .toggle-item:last-child {
@@ -474,6 +484,7 @@
   font-weight: 500;
   color: var(--text-primary);
   margin: 0 0 4px 0;
+  transition: color 0.15s ease;
 }
 
 .toggle-info p {

@@ -224,18 +224,37 @@ const auth = useAuthStore()
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   margin-bottom: 4px;
+  position: relative;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  background: var(--accent-blue);
+  border-radius: 0 2px 2px 0;
+  transition: height 0.2s ease;
 }
 
 .nav-item:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);
+  padding-left: 14px;
 }
 
 .nav-item.active {
   background: rgba(59, 130, 246, 0.15);
   color: var(--accent-blue);
+}
+
+.nav-item.active::before {
+  height: 60%;
 }
 
 .nav-icon {
@@ -268,6 +287,11 @@ const auth = useAuthStore()
   padding: 12px;
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.user-card:hover {
+  background: var(--bg-elevated);
 }
 
 .user-avatar {

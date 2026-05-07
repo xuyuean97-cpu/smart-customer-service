@@ -83,6 +83,7 @@ body {
 
 .el-table td.el-table__cell {
   border-bottom-color: var(--border-color) !important;
+  transition: background-color 0.15s ease !important;
 }
 
 .el-button {
@@ -93,6 +94,11 @@ body {
   --el-button-hover-border-color: var(--border-color);
   border-radius: var(--radius-md) !important;
   font-weight: 500;
+  transition: all 0.15s ease !important;
+}
+
+.el-button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .el-button--primary {
@@ -128,6 +134,11 @@ body {
   border: 1px solid var(--border-color) !important;
   border-radius: var(--radius-md) !important;
   box-shadow: none !important;
+  transition: all 0.15s ease !important;
+}
+
+.el-select__wrapper:hover {
+  border-color: var(--accent-blue) !important;
 }
 
 .el-tag {

@@ -17,7 +17,7 @@ client.interceptors.request.use(config => {
 })
 
 // 响应拦截器 — 解包统一格式 + 401 跳转
-// 兼容两种格式: {code:0, message, data} (api/response.py) 和 {ret_code, ret_msg, data} (memory API)
+// 兼容两种: {code:0, message, data} (api/response.py) 和 {ret_code, ret_msg, data} (memory API)
 client.interceptors.response.use(
   resp => {
     const d = resp.data

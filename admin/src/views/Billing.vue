@@ -278,6 +278,13 @@ onMounted(async () => {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  border-color: var(--accent-blue);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .stat-icon {
@@ -477,6 +484,14 @@ onMounted(async () => {
   background: var(--bg-tertiary);
 }
 
+.table-row:hover .token-bar {
+  filter: brightness(1.1);
+}
+
+.table-row:hover .date-text {
+  color: var(--accent-blue);
+}
+
 .td {
   font-size: 13px;
   color: var(--text-primary);
@@ -497,6 +512,7 @@ onMounted(async () => {
   background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
   border-radius: 4px;
   min-width: 20px;
+  transition: all 0.2s ease;
 }
 
 .token-value {

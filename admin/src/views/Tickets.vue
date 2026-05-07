@@ -378,11 +378,16 @@ function openDetail(row) {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-color);
   align-items: center;
-  transition: background 0.15s ease;
+  transition: all 0.2s ease;
 }
 
 .table-row:hover {
   background: var(--bg-tertiary);
+}
+
+.table-row:hover .ticket-id {
+  color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.15);
 }
 
 .table-row:last-child {
@@ -401,6 +406,7 @@ function openDetail(row) {
   background: var(--bg-tertiary);
   padding: 4px 8px;
   border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
 }
 
 .ticket-summary {

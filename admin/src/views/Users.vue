@@ -119,28 +119,18 @@ onMounted(async () => {
 function formatProfile(profile) {
   if (!profile || Object.keys(profile).length === 0) return null
   const p = profile
-
-  // 内容分析
   const ca = p.content_analysis || {}
-  // 购物互动
   const si = p.shopping_interaction || {}
-  // 用户属性推断
   const ua = p.inferred_user_attribute || {}
-  // 会话指标
   const sm = p.session_metrics || {}
-  // 技术上下文
-  const tc = p.technical_context || {}
-
   const sections = []
 
-  // 用户画像
   const attrs = []
   if (ua.customer_type) attrs.push(`<span class="tag blue">${ua.customer_type}</span>`)
   if (ua.role) attrs.push(`<span class="tag green">${ua.role}</span>`)
   if (ua.confidence) attrs.push(`置信度: ${(ua.confidence * 100).toFixed(0)}%`)
   if (attrs.length) sections.push(`<div class="pf-section"><h4>用户画像</h4><div class="pf-tags">${attrs.join(' ')}</div></div>`)
 
-  // 内容特征
   const contents = []
   if (ca.language) contents.push(`语种: ${ca.language}`)
   if (ca.style) contents.push(`风格: ${ca.style}`)
@@ -149,21 +139,14 @@ function formatProfile(profile) {
   if (ca.keywords?.length) contents.push(`关键词: ${ca.keywords.slice(0, 8).join(', ')}`)
   if (contents.length) sections.push(`<div class="pf-section"><h4>内容特征</h4><p>${contents.join('<br>')}</p></div>`)
 
-  // 购物行为
   const shops = []
-  if (si.orders?.length) {
-    shops.push(`涉及订单: ${si.orders.map(o => o.order_id || o).slice(0, 5).join(', ')}${si.orders.length > 5 ? '...' : ''}`)
-  }
-  if (si.product_mentioned?.length) {
-    shops.push(`关注商品: ${si.product_mentioned.slice(0, 5).join(', ')}`)
-  }
+  if (si.orders?.length) shops.push(`涉及订单: ${si.orders.map(o => o.order_id || o).slice(0, 5).join(', ')}`)
+  if (si.product_mentioned) shops.push(`关注商品: ${si.product_mentioned.slice(0, 5).join(', ')}`)
   if (shops.length) sections.push(`<div class="pf-section"><h4>购物行为</h4><p>${shops.join('<br>')}</p></div>`)
 
-  // 会话统计
   const metrics = []
   if (sm.total_turns) metrics.push(`对话轮次: ${sm.total_turns}`)
   if (sm.avg_response_time) metrics.push(`平均响应: ${sm.avg_response_time}s`)
-  if (sm.avg_turn_length) metrics.push(`平均轮长: ${sm.avg_turn_length}字`)
   if (metrics.length) sections.push(`<div class="pf-section"><h4>会话统计</h4><p>${metrics.join('<br>')}</p></div>`)
 
   return sections.length
@@ -298,12 +281,36 @@ async function viewProfile(row) {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 20px;
-  transition: all 0.15s ease;
+  transition: all 0.25s ease;
+  animation: userCardFadeIn 0.4s ease-out backwards;
+}
+
+.users-grid .user-card:nth-child(1) { animation-delay: 0.05s; }
+.users-grid .user-card:nth-child(2) { animation-delay: 0.1s; }
+.users-grid .user-card:nth-child(3) { animation-delay: 0.15s; }
+.users-grid .user-card:nth-child(4) { animation-delay: 0.2s; }
+.users-grid .user-card:nth-child(5) { animation-delay: 0.25s; }
+.users-grid .user-card:nth-child(6) { animation-delay: 0.3s; }
+
+@keyframes userCardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .user-card:hover {
   border-color: var(--accent-blue);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  transform: translateY(-4px);
+}
+
+.user-card:hover .user-avatar {
+  transform: scale(1.1);
 }
 
 .user-header {
@@ -324,6 +331,7 @@ async function viewProfile(row) {
   color: white;
   font-size: 18px;
   font-weight: 600;
+  transition: transform 0.25s ease;
 }
 
 .user-info {
@@ -497,46 +505,12 @@ async function viewProfile(row) {
 }
 
 /* Profile Dialog */
-.profile-card {
-  min-width: 320px;
-  text-align: left;
-}
-.pf-section {
-  margin-bottom: 16px;
-}
-.pf-section h4 {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--accent-blue);
-  margin: 0 0 8px 0;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--border-color);
-}
-.pf-section p {
-  font-size: 13px;
-  color: var(--text-primary);
-  line-height: 1.8;
-  margin: 0;
-}
-.pf-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-.tag {
-  display: inline-block;
-  padding: 2px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-.tag.blue {
-  background: rgba(59, 130, 246, 0.15);
-  color: var(--accent-blue);
-}
-.tag.green {
-  background: rgba(34, 197, 94, 0.15);
-  color: var(--accent-green);
-}
+.profile-card { min-width: 320px; text-align: left; }
+.pf-section { margin-bottom: 16px; }
+.pf-section h4 { font-size: 13px; font-weight: 600; color: var(--accent-blue); margin: 0 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid var(--border-color); }
+.pf-section p { font-size: 13px; color: var(--text-primary); line-height: 1.8; margin: 0; }
+.pf-tags { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tag { display: inline-block; padding: 2px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.tag.blue { background: rgba(59,130,246,0.15); color: var(--accent-blue); }
+.tag.green { background: rgba(34,197,94,0.15); color: var(--accent-green); }
 </style>
