@@ -7,17 +7,17 @@
 from .user_profile_models import (
     # 基础枚举
     CustomerType, UserRole, SpendingPower, QueryStyle, Sentiment, ResolutionStatus,
-    
+
     # 三层核心画像模型
     SessionProfile, DailyProfile, InsightProfile, CompleteUserProfile,
-    
+
     # 业务组件模型
-    SessionMetrics, TechnicalContext, ContentAnalysis, ShoppingInteraction, 
+    SessionMetrics, TechnicalContext, ContentAnalysis, ShoppingInteraction,
     UserAttributeInference, LongTermSemanticAnalysis,
-    
+
     # 运维与报告模型
     ProfileUpdateResult, BusinessInsight, OperationalReport,
-    
+
     # 工具类
     ProfileConverterUtils
 )
@@ -31,10 +31,7 @@ from .profile_extractor import ProfileExtractor, profile_extractor
 # ================= 3. 导入运营分析引擎 =================
 from .operational_analytics import OperationalAnalyticsEngine, operational_analytics_engine
 
-# ================= 4. 导入自动化调度系统 =================
-from .profile_scheduler import ProfileScheduler, ScheduleConfig, profile_scheduler
-
-# ================= 5. 向后兼容性别名 (无缝平替旧版机场客服系统) =================
+# ================= 4. 向后兼容性别名 =================
 SingleSessionProfile = SessionProfile
 DailyStatisticsProfile = DailyProfile
 DeepInsightProfile = InsightProfile
@@ -45,30 +42,27 @@ TravelerType = CustomerType               # 核心映射：旅客类型 -> 顾�
 __all__ = [
     # 枚举
     'CustomerType', 'UserRole', 'SpendingPower', 'QueryStyle', 'Sentiment', 'ResolutionStatus',
-    
+
     # 核心模型
     'SessionProfile', 'DailyProfile', 'InsightProfile', 'CompleteUserProfile',
-    
+
     # 业务子模型
     'SessionMetrics', 'TechnicalContext', 'ContentAnalysis', 'ShoppingInteraction',
     'UserAttributeInference', 'LongTermSemanticAnalysis',
-    
+
     # 分析与报告模型
     'ProfileUpdateResult', 'BusinessInsight', 'OperationalReport',
-    
+
     # 工具类
     'ProfileConverterUtils',
-    
+
     # 向后兼容别名 (方便老代码过渡)
     'SingleSessionProfile', 'DailyStatisticsProfile', 'DeepInsightProfile',
     'ServiceInteraction', 'TravelerType',
-    
+
     # 核心引擎与全局单例
     'ProfileExtractor', 'profile_extractor',
-    'OperationalAnalyticsEngine', 'operational_analytics_engine', 
-    'ProfileScheduler', 'profile_scheduler',
-    'ScheduleConfig',
-    
+    'OperationalAnalyticsEngine', 'operational_analytics_engine',
     # 基础提取组件
     'SemanticExtractor', 'SessionMetricsCalculator', 'DataProfileAnalyzer'
 ]

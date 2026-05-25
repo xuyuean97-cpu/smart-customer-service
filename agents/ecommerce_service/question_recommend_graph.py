@@ -3,13 +3,13 @@
 """
 from langgraph.graph import StateGraph, START, END
 from .state import QuestionRecommendState
-from .problems_recommend_nodes import translator, artificial,images_thinking,question_recommend
+from .question_recommend_nodes import translator, artificial,images_thinking,question_recommend
 from langgraph.types import RetryPolicy
 
 def build_question_recommend_graph():
     """
     构建电商客服系统图，但不编译
-    
+
     Returns:
         未编译的图对象
     """

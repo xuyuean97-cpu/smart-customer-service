@@ -32,14 +32,14 @@ async def send_ali_sms(phone: str, code: str) -> bool:
     try:
         async with httpx.AsyncClient(verify=False) as client:  # verify=False 对应原代码的 ctx.verify_mode = ssl.CERT_NONE
             logger.info(f"正在向 {phone} 发送短信...")
-            
+
             response = await client.post(
                 settings.ALI_SMS_URL,
                 data=data,
                 headers=headers,
                 timeout=10.0
             )
-            
+
             # 解析响应
             if response.status_code == 200:
                 resp_json = response.json()

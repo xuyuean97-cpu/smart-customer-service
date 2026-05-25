@@ -43,7 +43,7 @@ class ClearDataResponse(BaseModel):
     message: str = Field(..., description="响应消息")
     cleared_collections: List[str] = Field([], description="已清除的集合列表")
 
-# 机场聊天接口协议相关模型
+# 电商聊天接口协议相关模型
 class EventContent(BaseModel):
     """事件内容基础模型"""
     pass
@@ -100,60 +100,62 @@ class FormEventContent(EventContent):
     fields: List[FormField] = Field(..., description="表单字段")
     buttons: List[FormButton] = Field(..., description="表单按钮")
 
-class FlightInfo(BaseModel):
-    """航班信息"""
-    flight_number: str = Field(..., description="航班号")
-    flight_status: Optional[str] = Field(None, description="航班状态")
+class OrderInfo(BaseModel):
+    """订单物流信息"""
+    model_config = {"populate_by_name": True}  # 允许同时用新旧字段名解析
+
+    order_id: str = Field(..., description="订单号/快递单号")
+    order_status: Optional[str] = Field(None, description="订单/物流状态")
     abnormal_status: Optional[str] = Field(None, description="异常状态")
     abnormal_reason: Optional[str] = Field(None, description="异常原因")
-    
-    # 出发信息
-    departure_station: Optional[str] = Field(None, description="出发机场")
-    departure_terminal: Optional[str] = Field(None, description="出发航站楼")
-    scheduled_departure_time: Optional[str] = Field(None, description="计划出发时间")
-    changed_departure_time: Optional[str] = Field(None, description="变更出发时间")
-    actual_departure_time: Optional[str] = Field(None, description="实际出发时间")
-    
-    # 到达信息
-    destination_station: Optional[str] = Field(None, description="目的地机场")
-    destination_terminal: Optional[str] = Field(None, description="到达航站楼")
+
+    # 发货信息
+    departure_station: Optional[str] = Field(None, description="发货地")
+    departure_hub: Optional[str] = Field(None, alias="departure_terminal", description="发货网点")
+    scheduled_departure_time: Optional[str] = Field(None, description="计划发货时间")
+    changed_departure_time: Optional[str] = Field(None, description="变更发货时间")
+    actual_departure_time: Optional[str] = Field(None, description="实际发货时间")
+
+    # 收货信息
+    destination_station: Optional[str] = Field(None, description="收货地")
+    destination_hub: Optional[str] = Field(None, alias="destination_terminal", description="收货网点")
     scheduled_arrival_time: Optional[str] = Field(None, description="计划到达时间")
     changed_arrival_time: Optional[str] = Field(None, description="变更到达时间")
     actual_arrival_time: Optional[str] = Field(None, description="实际到达时间")
-    
-    # 航线和航空公司信息
-    full_route_path: Optional[str] = Field(None, description="完整航线路径")
-    airline_twocharcode: Optional[str] = Field(None, description="航空公司两字代码")
-    airline_company: Optional[str] = Field(None, description="航空公司名称")
-    aircraft_type: Optional[str] = Field(None, description="机型")
-    
-    # 登机和服务信息
-    boarding_gate: Optional[str] = Field(None, description="登机口")
-    checkin_counter: Optional[str] = Field(None, description="值机柜台")
-    baggage_carousel: Optional[str] = Field(None, description="行李转盘")
-    
-    # 登机时间信息
-    scheduled_cut_off_time: Optional[str] = Field(None, description="计划截载时间")
-    changed_cut_off_time: Optional[str] = Field(None, description="变更截载时间")
-    actual_cut_off_time: Optional[str] = Field(None, description="实际截载时间")
-    expected_security_check_duration: Optional[str] = Field(None, description="预计安检时长")
-    scheduled_boarding_time: Optional[str] = Field(None, description="计划登机时间")
-    changed_boarding_time: Optional[str] = Field(None, description="变更登机时间")
-    actual_boarding_time: Optional[str] = Field(None, description="实际登机时间")
-    scheduled_boarding_end_time: Optional[str] = Field(None, description="计划登机结束时间")
-    changed_boarding_end_time: Optional[str] = Field(None, description="变更登机结束时间")
-    actual_boarding_end_time: Optional[str] = Field(None, description="实际登机结束时间")
-    expected_boarding_walking_duration: Optional[str] = Field(None, description="预计登机步行时长")
-    
-    # 其他信息
-    shared_flight_number: Optional[str] = Field(None, description="共享航班号")
-    subscribe_supported: bool = Field(..., description="是否支持订阅")
-    airline_logo: Optional[str] = Field(None, description="航空公司logo")
 
-class FlightListEventContent(EventContent):
-    """航班列表事件内容"""
+    # 物流商信息
+    full_route_path: Optional[str] = Field(None, description="完整运输路径")
+    express_code: Optional[str] = Field(None, alias="airline_twocharcode", description="物流商代码")
+    express_company: Optional[str] = Field(None, alias="airline_company", description="物流商名称")
+    shipping_method: Optional[str] = Field(None, alias="aircraft_type", description="运输方式")
+
+    # 配送节点信息
+    current_station: Optional[str] = Field(None, alias="boarding_gate", description="当前所在配送站")
+    pickup_point: Optional[str] = Field(None, alias="checkin_counter", description="揽收点")
+    self_pickup_point: Optional[str] = Field(None, alias="baggage_carousel", description="自提点")
+
+    # 时间节点信息
+    scheduled_cut_off_time: Optional[str] = Field(None, description="计划截单时间")
+    changed_cut_off_time: Optional[str] = Field(None, description="变更截单时间")
+    actual_cut_off_time: Optional[str] = Field(None, description="实际截单时间")
+    expected_processing_duration: Optional[str] = Field(None, alias="expected_security_check_duration", description="预计处理时长")
+    scheduled_outbound_time: Optional[str] = Field(None, alias="scheduled_boarding_time", description="计划出库时间")
+    changed_outbound_time: Optional[str] = Field(None, alias="changed_boarding_time", description="变更出库时间")
+    actual_outbound_time: Optional[str] = Field(None, alias="actual_boarding_time", description="实际出库时间")
+    scheduled_delivery_end_time: Optional[str] = Field(None, alias="scheduled_boarding_end_time", description="计划派送结束时间")
+    changed_delivery_end_time: Optional[str] = Field(None, alias="changed_boarding_end_time", description="变更派送结束时间")
+    actual_delivery_end_time: Optional[str] = Field(None, alias="actual_boarding_end_time", description="实际派送结束时间")
+    expected_delivery_duration: Optional[str] = Field(None, alias="expected_boarding_walking_duration", description="预计配送时长")
+
+    # 其他信息
+    related_order_id: Optional[str] = Field(None, alias="shared_flight_number", description="关联订单号")
+    subscribe_supported: bool = Field(..., description="是否支持物流订阅")
+    express_logo: Optional[str] = Field(None, alias="airline_logo", description="物流商logo")
+
+class OrderListEventContent(EventContent):
+    """订单列表事件内容"""
     title: str = Field(..., description="列表标题或提示信息")
-    flights: List[FlightInfo] = Field(..., description="航班对象数组")
+    orders: List[OrderInfo] = Field(..., description="订单对象数组")
     action_hint: Optional[str] = Field(None, description="展示在前端的提示语")
 
 class EndEventContent(EventContent):
@@ -170,7 +172,7 @@ class ChatEvent(BaseModel):
     """聊天事件模型"""
     id: str = Field(..., description="事件唯一标识")
     sequence: int = Field(..., description="事件序号")
-    content: Union[TextEventContent, RichContentEventContent, DataEventContent, FormEventContent, FlightListEventContent, EndEventContent, ErrorEventContent] = Field(..., description="事件内容")
+    content: Union[TextEventContent, RichContentEventContent, DataEventContent, FormEventContent, OrderListEventContent, EndEventContent, ErrorEventContent] = Field(..., description="事件内容")
 
 
 
@@ -189,7 +191,7 @@ class QuestionRecommendRequest(BaseModel):
     query: Optional[str] = Field(None, description="用户当前输入内容")
     image: Optional[ImageData] = Field(None, description="可选的图片数据")
     metadata: Optional[Dict[str, Any]] = Field(None, description="可选的上下文信息")
-    
+
     @model_validator(mode='after')
     def validate_query_or_image(self):
         if not self.query and not self.image:
@@ -223,7 +225,7 @@ class BusinessRecommendRequest(BaseModel):
     query: Optional[str] = Field(None, description="用户当前输入内容")
     image: Optional[ImageData] = Field(None, description="可选的图片数据")
     metadata: Optional[Dict[str, Any]] = Field(None, description="可选的上下文信息")
-    
+
     @model_validator(mode='after')
     def validate_query_or_image(self):
         if not self.query and not self.image:

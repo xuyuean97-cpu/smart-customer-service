@@ -1,14 +1,11 @@
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
 from datetime import datetime
 from langgraph.prebuilt import ToolNode, tools_condition
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import StateGraph, START
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import AIMessage
 from agents.ecommerce_service.state import BusinessServiceState
-from agents.ecommerce_service.tools.business import wheelchair_rental,test
+from agents.ecommerce_service.tools.business import test
 from agents.ecommerce_service.core import filter_messages_for_agent, max_msg_len, structed_model
 from common.logging import get_logger
 from agents.ecommerce_service.context_engineering.prompts import main_graph_prompts
@@ -27,26 +24,26 @@ llm_with_tools = structed_model.bind_tools(business_tools)
 @memory_enabled_agent(application_id="电商主智能客服")
 async def business_chatbot(state: BusinessServiceState, config: RunnableConfig):
     logger.info("进入业务办理聊天机器人节点")
-    
+
     user_query = state.get("user_query", "") if state.get("user_query", "") else config["configurable"].get("user_query", "")
     business_prompt = ChatPromptTemplate.from_messages([
         ("system", main_graph_prompts.BUSINESS_ACTION_PROMPT),
     ]).partial(time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    
+
     # 过滤消息
     new_messages = filter_messages_for_agent(state, max_msg_len, "业务办理子智能体")
     messages = new_messages if len(new_messages) > 0 else [AIMessage(content="暂无对话历史")]
-    
+
     business_chain = business_prompt | llm_with_tools
-    
+
     response = await business_chain.ainvoke({
         "user_query": user_query,
         "messages": messages
     })
-    
+
     response.name = "业务办理子智能体"
     logger.info(f"业务办理聊天机器人响应: {response.content}")
-    
+
     return {"messages": [response]}
 
 

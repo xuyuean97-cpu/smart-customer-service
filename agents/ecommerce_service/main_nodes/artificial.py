@@ -1,16 +1,26 @@
 import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-from langchain_core.runnables import RunnableConfig
-from langgraph.store.base import BaseStore
-from langchain_core.messages import AIMessage
-import torch
-from transformers import pipeline
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from agents.ecommerce_service.state import AirportMainServiceState
-from agents.ecommerce_service.core import emotion
-from common.logging import get_logger
+
+# 提前加载 .env（因为 artificial.py 导入早于 config 模块，必须在此处显式加载）
+from pathlib import Path
+from dotenv import load_dotenv
+_env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path)
+
+# HuggingFace 镜像（国内必须先设置，否则 transformers 会直连 huggingface.co 超时）
+_HF_MIRROR = "https://hf-mirror.com"
+os.environ.setdefault("HF_ENDPOINT", _HF_MIRROR)
+os.environ.setdefault("HF_HUB_ENDPOINT", _HF_MIRROR)  # huggingface_hub >= 0.26 用这个变量名
+
+from langchain_core.runnables import RunnableConfig  # noqa: E402
+from langgraph.store.base import BaseStore  # noqa: E402
+import torch  # noqa: E402
+from transformers import pipeline  # noqa: E402
+from transformers import AutoTokenizer, AutoModelForSequenceClassification  # noqa: E402
+from agents.ecommerce_service.state import EcommerceMainServiceState  # noqa: E402
+from agents.ecommerce_service.core import emotion  # noqa: E402
+from common.logging import get_logger  # noqa: E402
 
 # 获取情感识别节点专用日志记录器
 logger = get_logger("agents.main-nodes.artificial")
@@ -20,19 +30,19 @@ _emotion_classifier = None
 _emotion_mapping = {"Very Negative": 0, "Negative": 1, "Neutral": 2, "Positive": 3, "Very Positive": 4}
 
 def initialize_emotion_classifier():
-    """初始化情感分析分类器"""
+    """初始化情感分析分类器（首次调用时从 HuggingFace 下载模型）"""
     global _emotion_classifier
-    
+
     if _emotion_classifier is not None:
         return _emotion_classifier
     try:
         # 检查CUDA是否可用
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        logger.info(f"情感分析模型使用设备: {device}")
+        logger.info(f"Initializing emotion classifier on device: {device}")
         # 加载tokenizer和模型
         tokenizer = AutoTokenizer.from_pretrained(emotion["model_path"])
         model = AutoModelForSequenceClassification.from_pretrained(emotion["model_path"]).to(device)
-        
+
         # 初始化情感分析 pipeline
         _emotion_classifier = pipeline(
             "text-classification",
@@ -40,10 +50,10 @@ def initialize_emotion_classifier():
             tokenizer=tokenizer,
             device=0 if torch.cuda.is_available() else -1
         )
-        
-        logger.info("情感分析模型初始化成功")
+
+        logger.info("Emotion classifier initialized")
         return _emotion_classifier
-        
+
     except Exception as e:
         logger.error(f"情感分析模型初始化失败: {e}")
         return None
@@ -51,23 +61,23 @@ def initialize_emotion_classifier():
 def analyze_emotion_with_model(text: str)->dict:
     """使用深度学习模型进行情感分析"""
     global _emotion_classifier
-    
+
     if _emotion_classifier is None:
         _emotion_classifier = initialize_emotion_classifier()
-    
+
     try:
         result = _emotion_classifier(text)
         emotion_label = result[0]['label']
-        confidence = result[0]['score']
+        result[0]['score']
         emotion_score = _emotion_mapping.get(emotion_label, 2)  # 默认为中性
-                
+
         # 返回情感分数和是否为负面情绪
         is_negative = emotion_score <= 1  # Very Negative 或 Negative
         return {
             "reason": "用户情绪已经非常的负面，需要转人工",
             "is_negative": is_negative
         }
-        
+
     except Exception as e:
         logger.error(f"情感分析出错: {e}")
         return {
@@ -83,7 +93,7 @@ def is_explicit_request(text:str)->bool:
 # 2. 同一问题重复3次（全局统计）
 def is_exact_repeat(messages: list, threshold: int = 3) -> bool:
     recent_human_messages = []
-    
+
     for message in reversed(messages):
         if hasattr(message, '__class__') and message.__class__.__name__ == 'HumanMessage':
             recent_human_messages.append(message.content)
@@ -95,20 +105,20 @@ def is_exact_repeat(messages: list, threshold: int = 3) -> bool:
     return all(content == first_content for content in recent_human_messages)
 
 # 主判定函数
-def should_transfer(state: AirportMainServiceState,user_query:str):
+def should_transfer(state: EcommerceMainServiceState,user_query:str):
     if is_explicit_request(user_query):
         return {"reason": "用户明确输入请求转人工", "is_negative": True}
     if is_exact_repeat(state["messages"]):
         return {"reason": "用户重复输入相同问题3 次，需要转人工", "is_negative": True}
-    
+
     emotion_result = analyze_emotion_with_model(user_query)
     return  emotion_result
-    
 
-async def detect_emotion(state: AirportMainServiceState, config: RunnableConfig, store: BaseStore):
+
+async def detect_emotion(state: EcommerceMainServiceState, config: RunnableConfig, store: BaseStore):
     """
     情感识别节点
-    
+
     Args:
         state: 当前状态对象
         config: 可运行配置

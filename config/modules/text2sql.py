@@ -5,15 +5,15 @@ import os
 
 # 开发环境特定配置
 TEXT2SQL_CONFIG = {
-    # LLM配置
+    # LLM配置 — 用 qwen-plus 替代 deepseek（SQL 生成不需要推理，速度优先）
     "llm": {
-        "api_key": os.getenv("LLM_API_KEY"),
-        "base_url": os.getenv("LLM_BASE_URL"),
-        "model": os.getenv("LLM_MODEL"),
-        "temperature": float(os.getenv("LLM_TEMPERATURE", "0.7")),
+        "api_key": os.getenv("ROUTER_LLM_API_KEY", os.getenv("LLM_API_KEY")),
+        "base_url": os.getenv("ROUTER_LLM_BASE_URL", os.getenv("LLM_BASE_URL")),
+        "model": os.getenv("ROUTER_LLM_MODEL", "qwen-plus"),
+        "temperature": float(os.getenv("LLM_TEMPERATURE", "0.3")),
         "max_tokens": int(os.getenv("LLM_MAX_TOKENS", 20000))
     },
-    
+
     # 嵌入模型配置
     "embedding": {
         "api_key": os.getenv("EMBEDDING_API_KEY",os.getenv("LLM_API_KEY")),
@@ -22,7 +22,7 @@ TEXT2SQL_CONFIG = {
         "dimensions": int(os.getenv("EMBEDDING_DIMENSIONS", 512)),
         "max_tokens": int(os.getenv("EMBEDDING_MAX_TOKENS", 1024))
     },
-    
+
     # 数据库配置
     "db": {
         "type": os.getenv("DB_TYPE", "postgresql"),
@@ -34,7 +34,7 @@ TEXT2SQL_CONFIG = {
         "min_size": int(os.getenv("DB_MIN_SIZE", "2")),
         "max_size": int(os.getenv("DB_MAX_SIZE", "5"))
     },
-    
+
     # 向量数据库配置
     "storage": {
         "type": os.getenv("STORAGE_TYPE", "chromadb"),

@@ -53,21 +53,21 @@ class ProfileResponse(BaseModel):
 async def extract_session_profile(request: SessionExtractionRequest):
     """
     提取单次会话画像（第一步）
-    
+
     用于会话结束后立即触发的画像提取
     """
     try:
         # 初始化记忆管理器
         if not memory_manager._initialized:
             await memory_manager.initialize()
-        
+
         # 触发会话画像提取
         result = await memory_manager.trigger_session_profile_extraction(
             application_id=request.application_id,
             user_id=request.user_id,
             run_id=request.run_id
         )
-        
+
         if result and result.get("success"):
             return ProfileResponse(
                 success=True,
@@ -81,19 +81,19 @@ async def extract_session_profile(request: SessionExtractionRequest):
                 message="会话画像提取失败",
                 error=error_msg
             )
-            
+
     except Exception as e:
         logger.error(f"会话画像提取API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.post("/extract/session/async", response_model=ProfileResponse)
 async def extract_session_profile_async(
-    request: SessionExtractionRequest, 
+    request: SessionExtractionRequest,
     background_tasks: BackgroundTasks
 ):
     """
     异步提取单次会话画像
-    
+
     适用于不需要立即返回结果的场景
     """
     try:
@@ -104,7 +104,7 @@ async def extract_session_profile_async(
             request.user_id,
             request.run_id
         )
-        
+
         return ProfileResponse(
             success=True,
             message="会话画像提取任务已提交",
@@ -115,29 +115,29 @@ async def extract_session_profile_async(
                 "status": "processing"
             }
         )
-        
+
     except Exception as e:
         logger.error(f"异步会话画像提取API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.post("/aggregate/daily", response_model=ProfileResponse)
 async def aggregate_daily_profile(request: DailyAggregationRequest):
     """
     聚合每日画像（第二步）
-    
+
     用于每日定时任务触发的画像聚合
     """
     try:
         # 初始化记忆管理器
         if not memory_manager._initialized:
             await memory_manager.initialize()
-        
+
         # 触发每日聚合
         result = await memory_manager.trigger_daily_profile_aggregation(
             user_id=request.user_id,
             date=request.date
         )
-        
+
         if result and result.get("success"):
             return ProfileResponse(
                 success=True,
@@ -151,29 +151,29 @@ async def aggregate_daily_profile(request: DailyAggregationRequest):
                 message="每日画像聚合失败",
                 error=error_msg
             )
-            
+
     except Exception as e:
         logger.error(f"每日聚合API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.post("/analyze/deep", response_model=ProfileResponse)
 async def analyze_deep_insight(request: DeepAnalysisRequest):
     """
     深度洞察分析（第三步）
-    
+
     用于长周期的用户画像深度分析
     """
     try:
         # 初始化记忆管理器
         if not memory_manager._initialized:
             await memory_manager.initialize()
-        
+
         # 触发深度分析
         result = await memory_manager.trigger_deep_insight_analysis(
             user_id=request.user_id,
             days=request.days
         )
-        
+
         if result and result.get("success"):
             return ProfileResponse(
                 success=True,
@@ -187,10 +187,10 @@ async def analyze_deep_insight(request: DeepAnalysisRequest):
                 message="深度洞察分析失败",
                 error=error_msg
             )
-            
+
     except Exception as e:
         logger.error(f"深度分析API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.post("/extract/batch", response_model=ProfileResponse)
 async def batch_extract_profiles(
@@ -199,7 +199,7 @@ async def batch_extract_profiles(
 ):
     """
     批量提取画像
-    
+
     适用于批量处理多个用户会话的场景
     """
     try:
@@ -209,7 +209,7 @@ async def batch_extract_profiles(
             request.application_id,
             request.user_sessions
         )
-        
+
         return ProfileResponse(
             success=True,
             message=f"批量画像提取任务已提交，共{len(request.user_sessions)}个会话",
@@ -219,26 +219,26 @@ async def batch_extract_profiles(
                 "status": "processing"
             }
         )
-        
+
     except Exception as e:
         logger.error(f"批量提取API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.get("/query/{user_id}", response_model=ProfileResponse)
 async def query_user_profile(user_id: str):
     """
     查询用户画像
-    
+
     获取用户的完整画像信息
     """
     try:
         # 初始化记忆管理器
         if not memory_manager._initialized:
             await memory_manager.initialize()
-        
+
         # 查询用户画像
         user_profile = await memory_manager.get_user_profile(user_id)
-        
+
         if user_profile:
             return ProfileResponse(
                 success=True,
@@ -258,10 +258,10 @@ async def query_user_profile(user_id: str):
                 message="未找到用户画像",
                 error="用户画像不存在或尚未生成"
             )
-            
+
     except Exception as e:
         logger.error(f"画像查询API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.get("/conversation/{application_id}/{user_id}/{run_id}")
 async def get_conversation_history(
@@ -272,14 +272,14 @@ async def get_conversation_history(
 ):
     """
     获取会话历史
-    
+
     用于查看特定会话的对话记录
     """
     try:
         # 初始化记忆管理器
         if not memory_manager._initialized:
             await memory_manager.initialize()
-        
+
         # 获取会话历史
         conversation_history = await memory_manager.get_conversation_history(
             application_id=application_id,
@@ -287,7 +287,7 @@ async def get_conversation_history(
             run_id=run_id,
             limit=limit
         )
-        
+
         return ProfileResponse(
             success=True,
             message=f"获取到{len(conversation_history)}条会话记录",
@@ -299,10 +299,10 @@ async def get_conversation_history(
                 "conversations": conversation_history
             }
         )
-        
+
     except Exception as e:
         logger.error(f"会话历史查询API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 @profile_router.post("/trigger/auto")
 async def trigger_auto_extraction(
@@ -312,7 +312,7 @@ async def trigger_auto_extraction(
 ):
     """
     触发自动画像提取
-    
+
     根据用户当前状态自动决定执行哪些画像提取步骤
     """
     try:
@@ -323,7 +323,7 @@ async def trigger_auto_extraction(
                 user_id,
                 application_id
             )
-        
+
         return ProfileResponse(
             success=True,
             message="自动画像提取任务已提交",
@@ -334,10 +334,10 @@ async def trigger_auto_extraction(
                 "status": "processing"
             }
         )
-        
+
     except Exception as e:
         logger.error(f"自动提取API异常: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"内部服务错误: {str(e)}") from e
 
 # ============================== 后台任务函数 ==============================
 
@@ -347,16 +347,16 @@ async def _async_session_extraction(application_id: str, user_id: str, run_id: s
         # 初始化记忆管理器
         if not memory_manager._initialized:
             await memory_manager.initialize()
-        
+
         # 执行提取
         result = await memory_manager.trigger_session_profile_extraction(
             application_id=application_id,
             user_id=user_id,
             run_id=run_id
         )
-        
+
         logger.info(f"异步会话画像提取完成: {user_id}:{run_id}, 结果: {result}")
-        
+
     except Exception as e:
         logger.error(f"异步会话画像提取失败: {user_id}:{run_id} - {str(e)}")
 
@@ -366,10 +366,10 @@ async def _async_batch_extraction(application_id: str, user_sessions: List[Dict[
         # 初始化记忆管理器
         if not memory_manager._initialized:
             await memory_manager.initialize()
-        
+
         success_count = 0
         failed_count = 0
-        
+
         # 逐个处理会话
         for session in user_sessions:
             try:
@@ -378,18 +378,18 @@ async def _async_batch_extraction(application_id: str, user_sessions: List[Dict[
                     user_id=session["user_id"],
                     run_id=session["run_id"]
                 )
-                
+
                 if result and result.get("success"):
                     success_count += 1
                 else:
                     failed_count += 1
-                    
+
             except Exception as session_error:
                 logger.error(f"单个会话提取失败: {session} - {str(session_error)}")
                 failed_count += 1
-        
+
         logger.info(f"批量画像提取完成: 成功{success_count}, 失败{failed_count}")
-        
+
     except Exception as e:
         logger.error(f"批量画像提取失败: {str(e)}")
 
@@ -399,18 +399,18 @@ async def _auto_profile_extraction(user_id: str, application_id: str):
         # 初始化记忆管理器
         if not memory_manager._initialized:
             await memory_manager.initialize()
-        
+
         # 检查用户最近的活动情况，决定执行哪些步骤
         # 这里简化为执行每日聚合和深度分析
-        
+
         today = datetime.now().strftime("%Y-%m-%d")
-        
+
         # 执行每日聚合
         daily_result = await memory_manager.trigger_daily_profile_aggregation(
             user_id=user_id,
             date=today
         )
-        
+
         # 如果是周一，执行深度分析
         if datetime.now().weekday() == 0:
             deep_result = await memory_manager.trigger_deep_insight_analysis(
@@ -419,9 +419,9 @@ async def _auto_profile_extraction(user_id: str, application_id: str):
             )
         else:
             deep_result = None
-        
+
         logger.info(f"自动画像提取完成: {user_id}, 每日聚合: {daily_result}, 深度分析: {deep_result}")
-        
+
     except Exception as e:
         logger.error(f"自动画像提取失败: {user_id} - {str(e)}")
 
@@ -434,17 +434,17 @@ async def health_check():
         # 检查记忆管理器状态
         if not memory_manager._initialized:
             await memory_manager.initialize()
-        
+
         return {
             "status": "healthy",
             "service": "user_profile_extraction",
             "memory_manager_initialized": memory_manager._initialized,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"健康检查失败: {str(e)}")
-        raise HTTPException(status_code=503, detail="服务不可用")
+        raise HTTPException(status_code=503, detail="服务不可用") from e
 
 @profile_router.get("/status")
 async def service_status():
@@ -456,7 +456,7 @@ async def service_status():
             "description": "基于 TrustCall 和 memory_manager 的三步走用户画像提取系统",
             "features": [
                 "会话画像提取（实时）",
-                "每日画像聚合（定时）", 
+                "每日画像聚合（定时）",
                 "深度洞察分析（周期性）",
                 "批量处理支持",
                 "异步任务处理"
@@ -471,7 +471,7 @@ async def service_status():
             },
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"状态查询失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="内部服务错误")
+        raise HTTPException(status_code=500, detail="内部服务错误") from e

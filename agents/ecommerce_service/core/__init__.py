@@ -1,6 +1,6 @@
-from .models import content_model, base_model, structed_model, emb_model
+from .models import content_model, base_model, structed_model, emb_model, content_model_no_thinking
 from .utils import (
-    filter_messages_for_agent, 
+    filter_messages_for_agent,
     filter_messages_for_llm,
     extract_order_ids_from_result,
     KB_SIMILARITY_THRESHOLD,
@@ -16,6 +16,7 @@ __all__ = [
     "content_model",
     "base_model",
     "structed_model",
+    "content_model_no_thinking",
     "image_model",
     "emb_model",
     "filter_messages_for_llm",

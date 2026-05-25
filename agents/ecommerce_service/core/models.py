@@ -12,8 +12,12 @@ emb_model_config = config_manager.get_agents_config().get("embedding", {})
 
 
 
+# DeepSeek 默认开启思考模式，导致简单查询也要等 10s+
+# 所有实例统一加 extra_body 关思考 + 15s 超时
+_deepseek_extra_body = {"thinking": {"type": "disabled"}}
+
 # 创建共用模型实
-if llm_model_config.get("enable_thinking") == True:
+if llm_model_config.get("enable_thinking"):
     content_model = ChatOpenAI(
         model_name=llm_model_config.get("model"),
         temperature=llm_model_config.get("temperature", 0.7),
@@ -27,22 +31,48 @@ else:
         model_name=llm_model_config.get("model"),
         temperature=llm_model_config.get("temperature", 0.7),
         openai_api_key=llm_model_config.get("api_key"),
-        openai_api_base=llm_model_config.get("base_url")
+        openai_api_base=llm_model_config.get("base_url"),
+        request_timeout=15,
+        extra_body=_deepseek_extra_body,
     )
 
 
+_deepseek_extra_body = {"thinking": {"type": "disabled"}}
 base_model = ChatOpenAI(
     model_name=llm_model_config.get("model"),
     temperature=llm_model_config.get("temperature", 0.7),
     openai_api_key=llm_model_config.get("api_key"),
-    openai_api_base=llm_model_config.get("base_url")
+    openai_api_base=llm_model_config.get("base_url"),
+    request_timeout=15,
+    extra_body=_deepseek_extra_body,
+)
+
+# DeepSeek 思考模式默认开启时不支持 tool_choice，此实例显式关思考用于 structured output
+_content_config_no_thinking = llm_model_config.get("no_thinking_override", {})
+content_model_no_thinking = ChatOpenAI(
+    model_name=_content_config_no_thinking.get("model", llm_model_config.get("model")),
+    temperature=_content_config_no_thinking.get("temperature", 0.3),
+    openai_api_key=llm_model_config.get("api_key"),
+    openai_api_base=llm_model_config.get("base_url"),
+    extra_body={"thinking": {"type": "disabled"}},
+    streaming=False,
 )
 structed_model = ChatOpenAI(
     model_name=llm_model_config.get("router_model"),
     temperature=llm_model_config.get("router_temperature", 0.7),
     openai_api_key=llm_model_config.get("router_api_key"),
     openai_api_base=llm_model_config.get("router_base_url"),
-    streaming=False 
+    streaming=False
+)
+
+# 快速聊天模型 — 复用 router 的 qwen-plus（比 deepseek 快 3-5x，客服场景够用）
+fast_chat_model = ChatOpenAI(
+    model_name=llm_model_config.get("router_model", "qwen-plus"),
+    temperature=0.7,
+    openai_api_key=llm_model_config.get("router_api_key"),
+    openai_api_base=llm_model_config.get("router_base_url"),
+    request_timeout=10,
+    streaming=True,
 )
 
 
@@ -59,15 +89,15 @@ emb_model = OpenAIEmbeddings(
     openai_api_key=emb_model_config.get("api_key"),
     openai_api_base=emb_model_config.get("base_url"),
     # ！！！核心修复：必须加上这一行！！！
-    chunk_size=10, 
-    
+    chunk_size=10,
+
     # 建议：如果你使用的是 text-embedding-v4，建议把下面这行注释取消掉，
     # 这样能确保生成的向量维度是你 .env 里设置的 1024，防止和数据库不匹配。
     dimensions=emb_model_config.get("dimensions"),
         # =========== 新增的核心修复 ===========
     # 3. 禁用 Embedding 上下文长度检查（防止它去计算 Token）
     check_embedding_ctx_length=False,
-    
+
     # 4. 彻底禁用 tiktoken（禁止将文本转换为 Token ID 发送）
     tiktoken_enabled=False
 )

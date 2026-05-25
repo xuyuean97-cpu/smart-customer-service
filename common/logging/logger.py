@@ -15,7 +15,7 @@ class LoggerManager:
         return cls._instance
 
     @classmethod
-    def setup(cls, 
+    def setup(cls,
               log_dir: str = "logs",
               log_level: str = "INFO",
               max_bytes: int = 10 * 1024 * 1024,  # 10MB
@@ -23,7 +23,7 @@ class LoggerManager:
               format_string: Optional[str] = None) -> None:
         """
         设置日志系统
-        
+
         Args:
             log_dir: 日志文件目录
             log_level: 日志级别
@@ -45,8 +45,11 @@ class LoggerManager:
         root_logger = logging.getLogger()
         root_logger.setLevel(getattr(logging, log_level.upper()))
 
-        # 创建控制台处理器
-        console_handler = logging.StreamHandler()
+        # 创建控制台处理器 (强制 UTF-8，防止 Windows GBK 编码 emoji 报错)
+        import sys
+        import io
+        utf8_stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+        console_handler = logging.StreamHandler(utf8_stderr)
         console_handler.setFormatter(logging.Formatter(format_string))
         root_logger.addHandler(console_handler)
 
@@ -61,16 +64,24 @@ class LoggerManager:
         file_handler.setFormatter(logging.Formatter(format_string))
         root_logger.addHandler(file_handler)
 
+        # ---- 强制 uvicorn / fastapi 日志走同一套文件 handler ----
+        # 默认情况下 uvicorn.error 只输出到 stderr，不写文件，导致 500 报错在日志里找不到
+        for _name in ('uvicorn', 'uvicorn.error', 'uvicorn.access', 'uvicorn.asgi', 'fastapi'):
+            _uv_logger = logging.getLogger(_name)
+            _uv_logger.handlers.clear()         # 移除 uvicorn 自带 handler
+            _uv_logger.propagate = True          # 交给 root logger → 文件 + 控制台
+            _uv_logger.setLevel(root_logger.level)
+
         cls._initialized = True
 
     @classmethod
     def get_logger(cls, name: str) -> logging.Logger:
         """
         获取指定名称的日志记录器
-        
+
         Args:
             name: 日志记录器名称
-            
+
         Returns:
             logging.Logger: 日志记录器实例
         """
@@ -81,7 +92,7 @@ class LoggerManager:
 def setup_logger(**kwargs: Any) -> None:
     """
     设置日志系统的便捷函数
-    
+
     Args:
         **kwargs: 传递给LoggerManager.setup的参数
     """
@@ -90,11 +101,11 @@ def setup_logger(**kwargs: Any) -> None:
 def get_logger(name: str) -> logging.Logger:
     """
     获取日志记录器的便捷函数
-    
+
     Args:
         name: 日志记录器名称
-        
+
     Returns:
         logging.Logger: 日志记录器实例
     """
-    return LoggerManager().get_logger(name) 
+    return LoggerManager().get_logger(name)

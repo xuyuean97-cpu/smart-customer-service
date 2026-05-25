@@ -5,7 +5,7 @@
 """
 import asyncio
 from datetime import datetime, timedelta
-from typing import Set, Dict, Any
+from typing import Set
 import schedule
 import threading
 import time
@@ -19,51 +19,57 @@ logger = get_logger("memory_scheduler")
 class MemoryScheduler:
     """
     记忆管理定时任务调度器
-    
+
     功能：
     - 每日凌晨2点：执行每日画像聚合
     - 每周一凌晨3点：执行深度画像分析
     - 会话画像不在此处调度，由前端主动触发
     """
-    
+
     def __init__(self):
         self.is_running = False
         self.scheduler_thread = None
         self.processed_users: Set[str] = set()  # 今日已处理的用户（防重复）
         self.last_reset_date = datetime.now().date()
-    
+
     def start(self):
         """启动定时任务调度器"""
         if self.is_running:
             logger.warning("调度器已在运行中")
             return
-        
+
         self.is_running = True
-        
+
         # 配置定时任务
         self._setup_schedules()
-        
+
         # 启动调度器线程
         self.scheduler_thread = threading.Thread(target=self._run_scheduler, daemon=True)
         self.scheduler_thread.start()
-        
+
         logger.info("记忆管理调度器已启动")
-    
+
     def stop(self):
         """停止定时任务调度器"""
         self.is_running = False
         if self.scheduler_thread:
             self.scheduler_thread.join(timeout=5)
         logger.info("记忆管理调度器已停止")
-    
+
     def _setup_schedules(self):
         """配置定时任务"""
         schedule.every().day.at("02:00").do(self._schedule_daily_profile_aggregation)
         schedule.every().monday.at("03:00").do(self._schedule_deep_insight_analysis)
         schedule.every().day.at("00:01").do(self._reset_daily_records)
-        
-        logger.info("定时任务已配置：每日画像聚合(02:00)、深度画像分析(周一03:00)")
-    
+
+        # 平台 Token 自动刷新（每4小时检查一次）
+        schedule.every(4).hours.do(self._schedule_token_refresh)
+
+        # 京东订单定时同步（每小时拉取新订单）
+        schedule.every().hour.do(self._schedule_jd_order_sync)
+
+        logger.info("定时任务已配置：每日画像聚合(02:00)、深度画像分析(周一03:00)、Token刷新(每4小时)、京东订单同步(每小时)")
+
     def _run_scheduler(self):
         """运行调度器主循环"""
         while self.is_running:
@@ -73,27 +79,19 @@ class MemoryScheduler:
             except Exception as e:
                 logger.error(f"调度器运行异常: {e}", exc_info=True)
                 time.sleep(60)
-    
+
     def _schedule_daily_profile_aggregation(self):
         """调度每日画像聚合任务"""
         logger.info("开始每日画像聚合任务")
-        
-        # 在新线程中运行异步任务
-        asyncio.run_coroutine_threadsafe(
-            self._daily_profile_aggregation(),
-            asyncio.new_event_loop()
-        )
-    
+
+        # Bug 2 修复: 用 asyncio.run() 替代 run_coroutine_threadsafe + new_event_loop()
+        asyncio.run(self._daily_profile_aggregation())
+
     def _schedule_deep_insight_analysis(self):
         """调度深度画像分析任务"""
         logger.info("开始深度画像分析任务")
-        
-        # 在新线程中运行异步任务
-        asyncio.run_coroutine_threadsafe(
-            self._deep_insight_analysis(),
-            asyncio.new_event_loop()
-        )
-    
+        asyncio.run(self._deep_insight_analysis())
+
     def _reset_daily_records(self):
         """重置每日处理记录"""
         current_date = datetime.now().date()
@@ -101,32 +99,87 @@ class MemoryScheduler:
             self.processed_users.clear()
             self.last_reset_date = current_date
             logger.info("每日处理记录已重置")
-    
+
+    def _schedule_token_refresh(self):
+        """调度平台 Token 刷新任务"""
+        logger.info("开始检查平台 Token 有效期")
+        asyncio.run(self._refresh_expiring_tokens())
+
+    def _schedule_jd_order_sync(self):
+        """调度京东订单同步任务"""
+        logger.info("开始京东订单定时同步")
+        asyncio.run(self._sync_jd_orders())
+
+    async def _refresh_expiring_tokens(self):
+        """刷新即将过期的平台 Token"""
+        try:
+            from agents.ecommerce_service.channels.platforms.credential import get_expiring_credentials, save_credential
+            from agents.ecommerce_service.channels.platforms import get_adapter
+
+            # 获取3天内即将过期的凭据
+            expiring = await get_expiring_credentials(days=3)
+            if not expiring:
+                logger.info("没有即将过期的平台 Token")
+                return
+
+            success_count = 0
+            for cred in expiring:
+                try:
+                    adapter = get_adapter(cred.platform)
+                    if not adapter:
+                        continue
+
+                    adapter.credential = cred
+                    new_cred = await adapter.refresh_token()
+                    await save_credential("default", new_cred)
+                    success_count += 1
+                    logger.info(f"Token 刷新成功: {cred.platform}")
+
+                except Exception as e:
+                    logger.error(f"Token 刷新失败: {cred.platform} - {e}")
+
+            logger.info(f"Token 刷新完成: {success_count}/{len(expiring)}")
+
+        except Exception as e:
+            logger.error(f"Token 刷新任务异常: {e}", exc_info=True)
+
+    async def _sync_jd_orders(self):
+        """定时同步京东订单"""
+        try:
+            from agents.ecommerce_service.tools.jd_order_sync import sync_jd_orders
+
+            # 同步最近1小时的订单
+            result = await sync_jd_orders(tenant_id="default")
+            logger.info(f"京东订单同步完成: {result}")
+
+        except Exception as e:
+            logger.error(f"京东订单同步异常: {e}", exc_info=True)
+
     async def _daily_profile_aggregation(self):
         """每日画像聚合主逻辑"""
         try:
             # 获取需要进行每日聚合的用户列表
             users_to_process = await self._get_users_for_daily_aggregation()
-            
+
             logger.info(f"需要进行每日聚合的用户数量: {len(users_to_process)}")
-            
+
             success_count = 0
             error_count = 0
             yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-            
+
             for user_id in users_to_process:
                 if user_id in self.processed_users:
                     logger.debug(f"用户 {user_id} 今日已处理，跳过")
                     continue
-                
+
                 try:
                     # 触发每日画像聚合
                     result = await memory_manager.trigger_daily_profile_aggregation(
-                        application_id="ecommerce_service",
+                        application_id="电商主智能客服",
                         user_id=user_id,
                         date=yesterday
                     )
-                    
+
                     if result and result.get("success"):
                         self.processed_users.add(user_id)
                         success_count += 1
@@ -134,62 +187,62 @@ class MemoryScheduler:
                     else:
                         error_count += 1
                         logger.warning(f"用户 {user_id} 每日画像聚合失败: {result.get('error') if result else '未知错误'}")
-                    
+
                     # 避免过于频繁的处理
                     await asyncio.sleep(1)
-                    
+
                 except Exception as e:
                     logger.error(f"用户 {user_id} 每日画像聚合异常: {e}")
                     error_count += 1
-            
+
             logger.info(f"每日画像聚合完成: 成功 {success_count}, 失败 {error_count}")
-            
+
         except Exception as e:
             logger.error(f"每日画像聚合任务异常: {e}", exc_info=True)
-    
+
     async def _deep_insight_analysis(self):
         """深度画像分析主逻辑"""
         try:
             # 获取需要进行深度分析的用户列表
             users_to_process = await self._get_users_for_deep_analysis()
-            
+
             logger.info(f"需要进行深度分析的用户数量: {len(users_to_process)}")
-            
+
             success_count = 0
             error_count = 0
-            
+
             for user_id in users_to_process:
                 try:
                     # 触发深度洞察分析
                     result = await memory_manager.trigger_deep_insight_analysis(
                         user_id=user_id,
-                        application_id="ecommerce_service",
+                        application_id="电商主智能客服",
                         days=30
                     )
-                    
+
                     if result and result.get("success"):
                         success_count += 1
                         logger.info(f"用户 {user_id} 深度画像分析成功")
                     else:
                         error_count += 1
                         logger.warning(f"用户 {user_id} 深度画像分析失败: {result.get('error') if result else '未知错误'}")
-                    
+
                     # 避免过于频繁的处理
                     await asyncio.sleep(2)
-                    
+
                 except Exception as e:
                     logger.error(f"用户 {user_id} 深度画像分析异常: {e}")
                     error_count += 1
-            
+
             logger.info(f"深度画像分析完成: 成功 {success_count}, 失败 {error_count}")
-            
+
         except Exception as e:
             logger.error(f"深度画像分析任务异常: {e}", exc_info=True)
-    
+
     async def _get_users_for_daily_aggregation(self) -> list:
         """
         获取需要进行每日聚合的用户列表
-        
+
         Returns:
             用户ID列表
         """
@@ -198,15 +251,15 @@ class MemoryScheduler:
             yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
             users = await self._get_users_with_sessions_on_date(yesterday)
             return users
-            
+
         except Exception as e:
             logger.error(f"获取每日聚合用户列表失败: {e}", exc_info=True)
             return []
-    
+
     async def _get_users_for_deep_analysis(self) -> list:
         """
         获取需要进行深度分析的用户列表
-        
+
         Returns:
             用户ID列表
         """
@@ -214,83 +267,80 @@ class MemoryScheduler:
             # 获取最近30天有活动且数据充足的用户
             users = await self._get_users_with_sufficient_data(days=30)
             return users
-            
+
         except Exception as e:
             logger.error(f"获取深度分析用户列表失败: {e}", exc_info=True)
             return []
-    
+
     async def _get_users_with_sessions_on_date(self, date: str) -> list:
         """
-        获取指定日期有会话画像的用户列表
-        
-        Args:
-            date: 日期 (YYYY-MM-DD)
-            
-        Returns:
-            用户ID列表
+        Bug 3 修复: 从对话历史直接发现活跃用户（不再依赖不存在的 session_profiles）
         """
         try:
-            # 获取指定日期的会话画像
-            session_profiles = await memory_manager.get_session_profiles(
-                day=date,
-                limit=1000  # 设置一个较大的限制
+            from datetime import datetime as dt
+            start = dt.strptime(date, "%Y-%m-%d")
+            end = start + timedelta(days=1)
+
+            conversations = await memory_manager.get_conversation_history(
+                application_id="电商主智能客服",
+                start_date=start,
+                end_date=end,
+                limit=10000,
             )
-            
-            # 提取唯一的用户ID
-            user_ids = list(set([profile.get("user_id") for profile in session_profiles if profile.get("user_id")]))
-            
+            user_ids = list(set(
+                c.get("user_id") for c in conversations if c.get("user_id")
+            ))
+
             logger.info(f"找到 {len(user_ids)} 个用户在 {date} 有会话画像")
             return user_ids
-            
+
         except Exception as e:
             logger.error(f"获取指定日期会话用户失败: {e}", exc_info=True)
             return []
-    
+
     async def _get_users_with_sufficient_data(self, days: int = 30) -> list:
         """
         获取数据充足的用户列表（用于深度分析）
-        
+
         Args:
             days: 数据时间范围（天）
-            
+
         Returns:
             用户ID列表
         """
         try:
-            # 获取最近有每日画像的用户
+            from datetime import datetime as dt
             sufficient_users = []
-            
-            # 检查最近days天有每日画像的用户
+            today = datetime.now().date()
+
             for i in range(days):
-                date = (datetime.now() - timedelta(days=i+1)).strftime("%Y-%m-%d")
-                daily_profiles = await memory_manager.get_daily_profiles(
-                    date=date,
-                    limit=100
+                check_date = today - timedelta(days=i + 1)
+                conversations = await memory_manager.get_conversation_history(
+                    application_id="电商主智能客服",
+                    start_date=dt(check_date.year, check_date.month, check_date.day),
+                    end_date=dt(check_date.year, check_date.month, check_date.day) + timedelta(days=1),
+                    limit=5000,
                 )
-                
-                for profile_data in daily_profiles:
-                    user_id = profile_data.get("user_id")
-                    if user_id and user_id not in sufficient_users:
-                        # 检查用户是否有足够的数据（至少7天的记录）
-                        user_daily_count = await self._count_user_daily_profiles(user_id, days)
-                        if user_daily_count >= 7:
-                            sufficient_users.append(user_id)
-            
-            logger.info(f"找到 {len(sufficient_users)} 个用户数据充足，可进行深度分析")
+                for c in conversations:
+                    uid = c.get("user_id", "")
+                    if uid and uid not in sufficient_users:
+                        sufficient_users.append(uid)
+
+            logger.info(f"找到 {len(sufficient_users)} 个活跃用户可进行深度分析")
             return sufficient_users
-            
+
         except Exception as e:
             logger.error(f"获取数据充足用户失败: {e}", exc_info=True)
             return []
-    
+
     async def _count_user_daily_profiles(self, user_id: str, days: int) -> int:
         """
         统计用户的每日画像数量
-        
+
         Args:
             user_id: 用户ID
             days: 统计天数
-            
+
         Returns:
             每日画像数量
         """
@@ -303,15 +353,15 @@ class MemoryScheduler:
             return len(daily_profiles)
         except Exception:
             return 0
-    
+
     async def manual_trigger_daily_aggregation(self, user_id: str, date: str) -> bool:
         """
         手动触发每日画像聚合
-        
+
         Args:
             user_id: 用户ID
             date: 日期 (YYYY-MM-DD)
-            
+
         Returns:
             是否成功
         """
@@ -321,26 +371,26 @@ class MemoryScheduler:
                 user_id=user_id,
                 date=date
             )
-            
+
             if result and result.get("success"):
                 logger.info(f"手动触发每日聚合成功: {user_id}, {date}")
                 return True
             else:
                 logger.warning(f"手动触发每日聚合失败: {user_id}, {date}")
                 return False
-                
+
         except Exception as e:
             logger.error(f"手动触发每日聚合异常: {user_id}, {date}, {e}")
             return False
-    
+
     async def manual_trigger_deep_analysis(self, user_id: str, days: int = 30) -> bool:
         """
         手动触发深度画像分析
-        
+
         Args:
             user_id: 用户ID
             days: 分析天数
-            
+
         Returns:
             是否成功
         """
@@ -350,14 +400,14 @@ class MemoryScheduler:
                 application_id="ecommerce_service",
                 days=days
             )
-            
+
             if result and result.get("success"):
                 logger.info(f"手动触发深度分析成功: {user_id}")
                 return True
             else:
                 logger.warning(f"手动触发深度分析失败: {user_id}")
                 return False
-                
+
         except Exception as e:
             logger.error(f"手动触发深度分析异常: {user_id}, {e}")
             return False
@@ -380,11 +430,11 @@ def stop_memory_scheduler():
 async def trigger_manual_daily_aggregation(user_id: str, date: str) -> bool:
     """
     手动触发每日画像聚合
-    
+
     Args:
         user_id: 用户ID
         date: 日期 (YYYY-MM-DD)
-        
+
     Returns:
         是否成功
     """
@@ -393,11 +443,11 @@ async def trigger_manual_daily_aggregation(user_id: str, date: str) -> bool:
 async def trigger_manual_deep_analysis(user_id: str, days: int = 30) -> bool:
     """
     手动触发深度画像分析
-    
+
     Args:
         user_id: 用户ID
         days: 分析天数
-        
+
     Returns:
         是否成功
     """

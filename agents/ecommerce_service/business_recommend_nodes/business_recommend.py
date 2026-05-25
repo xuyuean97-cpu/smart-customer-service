@@ -1,9 +1,6 @@
 """
 电商知识节点
 """
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
 from agents.ecommerce_service.state import BusinessRecommendState
 from pydantic import BaseModel,Field
 from typing import List
@@ -12,7 +9,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import AIMessage
 from trustcall import create_extractor
-from agents.ecommerce_service.core import filter_messages_for_llm,content_model
+from agents.ecommerce_service.core import filter_messages_for_llm, content_model_no_thinking
 from datetime import datetime
 from common.logging import get_logger
 from agents.ecommerce_service.context_engineering.prompts import business_recommend_prompts
@@ -43,7 +40,7 @@ async def provide_business_recommend(state: BusinessRecommendState, config: Runn
     ]).partial(time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     extractor = create_extractor(
-        content_model,
+        content_model_no_thinking,
         tools=[BusinessRecommendSchema],
         tool_choice="BusinessRecommendSchema"
     )

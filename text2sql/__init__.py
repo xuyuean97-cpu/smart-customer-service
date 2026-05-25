@@ -4,7 +4,7 @@ from common.logging import setup_logger, get_logger
 from config.factory import get_logger_config
 
 from .base.factory import AsyncSmartSqlFactory
-from .base.interfaces import AsyncPlugin
+from .base.interfaces import AsyncPlugin as AsyncPlugin
 
 # 获取日志配置并初始化日志系统
 logger_config = get_logger_config("text2sql")
@@ -26,3 +26,4 @@ def sync_create_text2sql(config: Optional[Dict[str, Any]] = None):
     """同步创建text2sql实例（内部使用异步）"""
     loop = asyncio.get_event_loop()
     return loop.run_until_complete(create_text2sql(config))
+__all__ = ['AsyncPlugin']

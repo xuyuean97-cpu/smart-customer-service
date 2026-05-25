@@ -1,0 +1,76 @@
+{
+    "ddl": [
+        "CREATE TABLE orders (id SERIAL PRIMARY KEY, order_id VARCHAR(24) UNIQUE NOT NULL, user_id VARCHAR(50) NOT NULL, product_name VARCHAR(200) NOT NULL, product_sku VARCHAR(50), quantity INTEGER DEFAULT 1, unit_price DECIMAL(10,2), total_amount DECIMAL(10,2) NOT NULL, discount_amount DECIMAL(10,2) DEFAULT 0, coupon_code VARCHAR(30), payment_method VARCHAR(20), payment_status VARCHAR(20) DEFAULT 'pending', order_status VARCHAR(20) DEFAULT 'pending', recipient_name VARCHAR(50), recipient_phone VARCHAR(20), shipping_address TEXT, tracking_number VARCHAR(30), express_company VARCHAR(50), express_code VARCHAR(10), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, paid_at TIMESTAMP, shipped_at TIMESTAMP, delivered_at TIMESTAMP, cancelled_at TIMESTAMP, refund_status VARCHAR(20), refund_amount DECIMAL(10,2), refund_reason TEXT, notes TEXT);",
+        "CREATE TABLE order_logistics_tracking (id SERIAL PRIMARY KEY, order_id VARCHAR(24) NOT NULL, tracking_number VARCHAR(30), order_status VARCHAR(30), abnormal_status VARCHAR(30), abnormal_reason TEXT, departure_station VARCHAR(50), departure_terminal VARCHAR(50), scheduled_departure_time TIMESTAMP, changed_departure_time TIMESTAMP, actual_departure_time TIMESTAMP, destination_station VARCHAR(50), destination_terminal VARCHAR(50), scheduled_arrival_time TIMESTAMP, changed_arrival_time TIMESTAMP, actual_arrival_time TIMESTAMP, full_route_path TEXT, airline_twocharcode VARCHAR(10), airline_company VARCHAR(50), aircraft_type VARCHAR(20), boarding_gate VARCHAR(50), checkin_counter VARCHAR(50), baggage_carousel VARCHAR(50), scheduled_cut_off_time TIMESTAMP, changed_cut_off_time TIMESTAMP, actual_cut_off_time TIMESTAMP, expected_security_check_duration VARCHAR(20), scheduled_boarding_time TIMESTAMP, changed_boarding_time TIMESTAMP, actual_boarding_time TIMESTAMP, scheduled_boarding_end_time TIMESTAMP, changed_boarding_end_time TIMESTAMP, actual_boarding_end_time TIMESTAMP, expected_boarding_walking_duration VARCHAR(20), shared_flight_number VARCHAR(30), subscribe_supported BOOLEAN DEFAULT TRUE, airline_logo TEXT, last_update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
+        "CREATE TABLE express_logos (id SERIAL PRIMARY KEY, express_code CHAR(10) UNIQUE NOT NULL, express_name VARCHAR(50), logo_data_uri TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
+    ],
+    "questions": [
+        {
+            "question": "查询订单JD2024042800001的物流状态",
+            "sql": "SELECT o.order_id, o.order_status, o.express_company, o.tracking_number, t.departure_station, t.destination_station, t.actual_departure_time, t.scheduled_arrival_time, t.full_route_path, t.boarding_gate FROM orders o LEFT JOIN order_logistics_tracking t ON o.order_id = t.order_id WHERE o.order_id = 'JD2024042800001';"
+        },
+        {
+            "question": "我的订单到哪了",
+            "sql": "SELECT o.order_id, o.product_name, o.order_status, o.express_company, o.tracking_number, t.current_location, t.order_status AS logistics_status, t.scheduled_arrival_time, t.full_route_path FROM orders o LEFT JOIN order_logistics_tracking t ON o.order_id = t.order_id WHERE o.user_id = '{user_id}' ORDER BY o.created_at DESC LIMIT 5;",
+            "tags": "指代消解,物流查询,模糊查询"
+        },
+        {
+            "question": "最近一周有哪些订单在运输中",
+            "sql": "SELECT o.order_id, o.product_name, o.order_status, o.express_company, o.tracking_number, o.shipped_at, t.order_status AS logistics_status, t.scheduled_arrival_time FROM orders o LEFT JOIN order_logistics_tracking t ON o.order_id = t.order_id WHERE o.user_id = '{user_id}' AND t.order_status = '运输中' AND o.shipped_at >= CURRENT_DATE - INTERVAL '7 days' ORDER BY o.shipped_at DESC;"
+        },
+        {
+            "question": "JD2024042800002这个单预计什么时候到",
+            "sql": "SELECT o.order_id, o.product_name, o.express_company, t.scheduled_arrival_time, t.changed_arrival_time, t.order_status, t.full_route_path FROM orders o LEFT JOIN order_logistics_tracking t ON o.order_id = t.order_id WHERE o.order_id = 'JD2024042800002';"
+        },
+        {
+            "question": "我所有已签收的订单",
+            "sql": "SELECT o.order_id, o.product_name, o.total_amount, o.express_company, o.tracking_number, o.delivered_at, t.actual_arrival_time FROM orders o LEFT JOIN order_logistics_tracking t ON o.order_id = t.order_id WHERE o.user_id = '{user_id}' AND (o.order_status = 'delivered' OR t.order_status = '已签收') ORDER BY o.delivered_at DESC LIMIT 20;"
+        },
+        {
+            "question": "待发货的订单有哪些",
+            "sql": "SELECT o.order_id, o.product_name, o.total_amount, o.payment_method, o.paid_at, o.order_status FROM orders o WHERE o.user_id = '{user_id}' AND o.order_status = 'paid' AND o.payment_status = 'paid' ORDER BY o.paid_at DESC;"
+        },
+        {
+            "question": "查询快递单号SF1234567890的物流详情",
+            "sql": "SELECT t.order_id, t.tracking_number, t.order_status, t.departure_station, t.actual_departure_time, t.destination_station, t.scheduled_arrival_time, t.actual_arrival_time, t.full_route_path, t.airline_company, t.boarding_gate FROM order_logistics_tracking t WHERE t.tracking_number = 'SF1234567890';"
+        },
+        {
+            "question": "顺丰发的订单有哪些",
+            "sql": "SELECT o.order_id, o.product_name, o.tracking_number, o.order_status, o.shipped_at, o.delivered_at FROM orders o WHERE o.user_id = '{user_id}' AND o.express_company = '顺丰速运' ORDER BY o.created_at DESC;"
+        },
+        {
+            "question": "上个月总共花了多少钱",
+            "sql": "SELECT COUNT(*) AS order_count, SUM(total_amount) AS total_spent, SUM(discount_amount) AS total_saved FROM orders WHERE user_id = '{user_id}' AND payment_status = 'paid' AND created_at >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND created_at < DATE_TRUNC('month', CURRENT_DATE);"
+        },
+        {
+            "question": "这个订单申请退款了吗",
+            "sql": "SELECT o.order_id, o.product_name, o.total_amount, o.refund_status, o.refund_amount, o.refund_reason, o.order_status FROM orders o WHERE o.user_id = '{user_id}' AND o.order_id = (SELECT order_id FROM orders WHERE user_id = '{user_id}' ORDER BY created_at DESC LIMIT 1);",
+            "tags": "指代消解,退款查询"
+        },
+        {
+            "question": "有没有出现异常的快递",
+            "sql": "SELECT t.order_id, t.tracking_number, t.order_status, t.abnormal_status, t.abnormal_reason, t.airline_company FROM order_logistics_tracking t JOIN orders o ON t.order_id = o.order_id WHERE o.user_id = '{user_id}' AND t.abnormal_status IS NOT NULL ORDER BY t.last_update_time DESC;"
+        },
+        {
+            "question": "JD2024042800008退货的物流进度",
+            "sql": "SELECT t.order_id, t.tracking_number, t.order_status, t.departure_station, t.destination_station, t.actual_departure_time, t.scheduled_arrival_time, t.actual_arrival_time, t.full_route_path, t.abnormal_reason FROM order_logistics_tracking t WHERE t.order_id = 'JD2024042800008';"
+        },
+        {
+            "question": "昨天下的单发货了没有",
+            "sql": "SELECT o.order_id, o.product_name, o.order_status, o.express_company, o.tracking_number, o.shipped_at FROM orders o WHERE o.user_id = '{user_id}' AND o.created_at >= CURRENT_DATE - INTERVAL '1 day' AND o.created_at < CURRENT_DATE ORDER BY o.created_at DESC;"
+        },
+        {
+            "question": "京东物流配送的订单预计什么时候到",
+            "sql": "SELECT o.order_id, o.product_name, o.tracking_number, t.scheduled_arrival_time, t.order_status, t.full_route_path FROM orders o LEFT JOIN order_logistics_tracking t ON o.order_id = t.order_id WHERE o.user_id = '{user_id}' AND o.express_company = '京东物流' AND o.order_status IN ('shipped', 'delivered') ORDER BY o.shipped_at DESC;"
+        },
+        {
+            "question": "查询物流状态为派送中的订单",
+            "sql": "SELECT o.order_id, o.product_name, o.tracking_number, t.order_status, t.boarding_gate AS current_station, t.scheduled_arrival_time FROM orders o JOIN order_logistics_tracking t ON o.order_id = t.order_id WHERE o.user_id = '{user_id}' AND t.order_status = '派送中' ORDER BY t.scheduled_arrival_time ASC;"
+        }
+    ],
+    "documentation": [
+        "orders 表存储用户的所有订单信息，包括商品信息、支付状态、订单状态、物流信息和售后信息。order_status 字段取值：pending(待付款)、paid(已付款/待发货)、shipped(已发货)、delivered(已签收)、cancelled(已取消)、returning(退货中)、returned(已退货)。payment_status 字段取值：pending(待支付)、paid(已支付)、refunding(退款中)、refunded(已退款)。refund_status 字段取值：none(无)、applying(申请中)、approved(已通过)、rejected(已拒绝)、completed(已完成)。express_code 对应快递公司编码：SF(顺丰)、YTO(圆通)、ZTO(中通)、JD(京东)、STO(申通)、YUNDA(韵达)、DB(德邦)、EMS(邮政)。",
+        "order_logistics_tracking 表存储订单的实时物流轨迹信息，一条订单可以有多条物流轨迹记录。order_status 字段取值：已揽收、运输中、派送中、已签收、退货中、已退回、异常。异常状态时 abnormal_status 和 abnormal_reason 会有值。物流时间节点包括：scheduled_departure_time(计划发货)、actual_departure_time(实际发货)、scheduled_arrival_time(预计送达)、actual_arrival_time(实际签收)。航空式字段名(airline_xxx/boarding_gate等)仅为历史兼容，实际含义为物流相关概念。",
+        "express_logos 表存储快递公司的Logo信息(Data URI格式)，用于前端订单卡片展示。常用 express_code 取值：SF(顺丰速运)、YTO(圆通速递)、ZTO(中通快递)、JD(京东物流)、STO(申通快递)、YUNDA(韵达速递)、DB(德邦快递)、EMS(邮政EMS)。"
+    ]
+}

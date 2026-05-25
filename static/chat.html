@@ -1106,7 +1106,7 @@
             scrollToBottom();
         }
 
-        // 添加航班列表消息
+        // 添加订单列表消息
         function addFlightListMessage(content) {
             const messagesArea = document.getElementById('messagesArea');
             const messageDiv = document.createElement('div');
@@ -1124,7 +1124,7 @@
             title.innerHTML = `<strong>${content.title}</strong>`;
             messageContent.appendChild(title);
 
-            // 添加航班列表
+            // 添加订单列表
             const flightList = document.createElement('div');
             flightList.className = 'flight-list';
 
@@ -1179,22 +1179,22 @@
                     html += `<div><strong>到达航站楼:</strong> ${flight.destination_terminal}</div>`;
                 }
                 
-                // 显示登机口
+                // 显示配送点
                 if (flight.boarding_gate) {
-                    html += `<div><strong>登机口:</strong> ${flight.boarding_gate}</div>`;
+                    html += `<div><strong>配送点:</strong> ${flight.boarding_gate}</div>`;
                 }
                 
-                // 显示值机柜台
+                // 显示发货仓库
                 if (flight.checkin_counter) {
-                    html += `<div><strong>值机柜台:</strong> ${flight.checkin_counter}</div>`;
+                    html += `<div><strong>发货仓库:</strong> ${flight.checkin_counter}</div>`;
                 }
                 
-                // 显示行李转盘
+                // 显示自提点
                 if (flight.baggage_carousel) {
-                    html += `<div><strong>行李转盘:</strong> ${flight.baggage_carousel}</div>`;
+                    html += `<div><strong>自提点:</strong> ${flight.baggage_carousel}</div>`;
                 }
                 
-                // 显示航班状态
+                // 显示订单状态
                 if (flight.flight_status || flight.abnormal_status) {
                     const status = flight.abnormal_status || flight.flight_status;
                     html += `<div><strong>状态:</strong> <span style="color: ${flight.abnormal_status ? '#ef4444' : '#10b981'}">${status}</span></div>`;

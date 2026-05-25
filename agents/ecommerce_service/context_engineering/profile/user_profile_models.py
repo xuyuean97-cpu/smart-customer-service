@@ -5,7 +5,7 @@
 """
 
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Dict, Union
+from typing import List, Optional, Dict
 from datetime import datetime
 from enum import Enum
 
@@ -94,12 +94,12 @@ class ContentAnalysis(BaseModel):
     keywords: List[str] = Field(default_factory=list, description="对话中提到的关键词(商品名、物流公司、优惠券等)")
     topics: List[str] = Field(default_factory=list, description="讨论的主要话题：如 商品咨询、催发货、退换货、发票问题、活动规则等")
     resolution_status: str = Field(default=ResolutionStatus.NOT_RESOLVED, description=f"问题解决状态：{list(ResolutionStatus._value2member_map_.keys())}")
-    
+
 class OrderInfo(BaseModel):
     """订单信息提取"""
     order_id: Optional[str] = Field(None, description="标准订单号格式。如果用户提到但格式不标准，请尝试标准化")
     product_mentioned: Optional[str] = Field(None, description="订单关联的具体商品名称或SKU")
-    
+
     @field_validator('order_id')
     def validate_order_id(cls, v):
         """简单验证订单号：通常全数字或包含特定字母前缀"""
@@ -111,12 +111,12 @@ class ProductInfo(BaseModel):
     product_name: str = Field(..., description="用户咨询的商品名称、类别或特征")
     sku_id: Optional[str] = Field(None, description="商品SKU编码（如能识别）")
     is_purchased: bool = Field(default=False, description="用户是否已经购买了该商品")
-    
+
 class ServiceIntent(BaseModel):
     """电商服务/售后意图"""
     intent_type: str = Field(description="用户意图：售前咨询、催发货、查物流、退款、换货、开票、投诉、修改地址等")
     status: str = Field(default="未处理", description="当前意图处理状态：已完成、处理中、需人工介入、已撤销")
-    
+
     @field_validator('intent_type')
     def validate_intent_type(cls, v):
         """验证使用意图范围"""
@@ -126,16 +126,16 @@ class ServiceIntent(BaseModel):
         return v
 
 
-class ShoppingInteraction(BaseModel):    
+class ShoppingInteraction(BaseModel):
     """购物交互实体记录"""
     orders: Optional[List[OrderInfo]] = Field(default_factory=list, description="对话中提到的所有订单信息")
     products: Optional[List[ProductInfo]] = Field(default_factory=list, description="对话中提及、咨询的所有商品信息")
     service_intents: Optional[List[ServiceIntent]] = Field(default_factory=list, description="用户的具体服务诉求")
-    
+
     @property
     def queried_orders(self) -> List[str]:
         return [o.order_id for o in self.orders if o.order_id]
-    
+
     @property
     def inquired_products(self) -> List[str]:
         return [p.product_name for p in self.products]
@@ -147,7 +147,7 @@ class UserAttributeInference(BaseModel):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="推断置信度(0-1)")
 
 # ============================== 第一层：单次会话画像 ==============================
-class SessionProfile(BaseModel):    
+class SessionProfile(BaseModel):
     session_metrics: SessionMetrics = Field(..., description="会话指标数据")
     technical_context: TechnicalContext = Field(default_factory=TechnicalContext, description="技术环境信息")
     content_analysis: ContentAnalysis = Field(..., description="内容分析结果（语言风格、情感状态等）")
@@ -177,7 +177,7 @@ class DailyBusinessUsage(BaseModel):
     orders_queried: int = Field(0, description="查询订单总数")
     products_inquired: int = Field(0, description="咨询商品总数")
     after_sales_requested: int = Field(0, description="发起售后请求总数")
-    
+
 
 class DailyProfile(BaseModel):
     """每日统计画像"""
@@ -188,7 +188,7 @@ class DailyProfile(BaseModel):
 # ============================== 第三层：深度洞察画像 ==============================
 class LongTermBehaviorPattern(BaseModel):
     """长期行为模式"""
-    preferred_contact_hours: List[int] = Field(default_factory=list, description="偏好联系时段(如晚上8-10点)")    
+    preferred_contact_hours: List[int] = Field(default_factory=list, description="偏好联系时段(如晚上8-10点)")
     communication_style: str = Field("standard", description="长期沟通风格倾向")
 
 class ShoppingPattern(BaseModel):
@@ -205,48 +205,48 @@ class ServicePreference(BaseModel):
 class InsightProfile(BaseModel):
     """深度洞察画像 (电商版)"""
     analysis_period: str = Field(..., description="分析周期 (如 30_days, all_time)")
-    
+
     # 核心标签
-    primary_customer_type: CustomerType = Field(..., description="主要顾客类型") 
+    primary_customer_type: CustomerType = Field(..., description="主要顾客类型")
     spending_power: SpendingPower = Field(SpendingPower.UNKNOWN, description="消费能力评估")
-    
+
     # 深度分析
     behavior_pattern: LongTermBehaviorPattern = Field(..., description="长期行为模式")
     shopping_pattern: ShoppingPattern = Field(default_factory=ShoppingPattern, description="购物模式与偏好")
     service_preference: ServicePreference = Field(default_factory=ServicePreference, description="客服服务偏好")
-    
+
     # 商业价值评估
     customer_value_score: float = Field(0.0, ge=0.0, le=1.0, description="客户终身价值评分(LTV)")
     churn_risk: float = Field(0.0, ge=0.0, le=1.0, description="流失/退货风险指数")
     upsell_potential: float = Field(0.0, ge=0.0, le=1.0, description="复购/交叉销售潜力")
-    
+
     # 推荐与沟通策略
     recommended_categories: List[str] = Field(default_factory=list, description="推荐营销品类")
     communication_strategy: str = Field("standard", description="客服沟通策略建议 (如：少废话直接发链接、需要耐心安抚)")
-    
+
     profile_confidence: float = Field(0.0, ge=0.0, le=1.0, description="画像置信度")
 
 # ============================== 完整用户画像聚合模型 ==============================
 class CompleteUserProfile(BaseModel):
     """完整用户画像（聚合所有层级）"""
     user_id: str = Field(..., description="电商用户ID/买家ID")
-    
+
     # 基础信息
     first_interaction: datetime = Field(..., description="首次咨询时间")
     last_interaction: datetime = Field(..., description="最近咨询时间")
     total_sessions: int = Field(0, description="历史总会话数")
     profile_version: str = Field("2.0_ecommerce", description="画像版本")
-    
+
     # 三层画像
     recent_sessions: List[SessionProfile] = Field(default_factory=list, description="最近会话画像(通常保留近5-10次)")
     daily_profiles: List[DailyProfile] = Field(default_factory=list, description="每日统计画像")
     insight_profile: Optional[InsightProfile] = Field(None, description="深度洞察画像")
-    
+
     # 实时状态标签
     current_status: str = Field("inactive", description="当前状态：活跃、售后中、休眠")
     risk_flags: List[str] = Field(default_factory=list, description="风险标识 (如：易差评、职业打假人、高频退货)")
     opportunities: List[str] = Field(default_factory=list, description="机会标识 (如：加购未结账、会员快过期)")
-    
+
     # 元数据
     last_profile_update: datetime = Field(default_factory=datetime.now, description="画像最后更新时间")
 # ============================== 语义分析及工具类 ==============================
@@ -264,7 +264,7 @@ class LongTermSemanticAnalysis(BaseModel):
 
 class ProfileConverterUtils:
     """画像数据转换工具类"""
-    
+
     @staticmethod
     def convert_str_to_customer_type(type_str: str) -> CustomerType:
         """将字符串转换为CustomerType枚举"""
@@ -280,7 +280,7 @@ class ProfileConverterUtils:
             "潜在": CustomerType.POTENTIAL
         }
         return mapping.get(type_str, CustomerType.REGULAR)
-    
+
     @staticmethod
     def convert_str_to_user_role(role_str: str) -> UserRole:
         """将字符串转换为UserRole枚举"""
@@ -294,7 +294,7 @@ class ProfileConverterUtils:
             "agent": UserRole.AGENT
         }
         return mapping.get(role_str, UserRole.BUYER)
-    
+
     @staticmethod
     def convert_str_to_spending_power(power_str: str) -> SpendingPower:
         """将字符串转换为SpendingPower枚举"""
@@ -340,16 +340,16 @@ class OperationalReport(BaseModel):
     report_id: str = Field(..., description="报告ID")
     period: str = Field(..., description="报告周期")
     report_type: str = Field(..., description="报告类型：daily/weekly/monthly")
-    
+
     # 电商客服核心指标
     total_users: int = Field(0, description="咨询总用户数")
     transfer_to_human_rate: float = Field(0.0, description="转人工率")
     conversion_rate: float = Field(0.0, description="咨询后转化/下单率")
     refund_inquiry_rate: float = Field(0.0, description="退款咨询占比")
-    
+
     avg_satisfaction: float = Field(0.0, description="平均满意度")
     resolution_rate: float = Field(0.0, description="AI问题解决率")
-    
+
     key_insights: List[BusinessInsight] = Field(default_factory=list, description="关键业务洞察")
     generated_at: datetime = Field(default_factory=datetime.now, description="生成时间")
 

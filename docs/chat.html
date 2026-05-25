@@ -17,7 +17,7 @@
         <!-- 欢迎屏幕 -->
         <div v-if="messages.length === 0" class="welcome-screen">
           <h2>👋 您好！我是智能客服</h2>
-          <p>我可以帮您查询航班、办理业务、解答疑问等。请问有什么可以帮您？</p>
+          <p>我可以帮您查询订单、办理业务、解答疑问等。请问有什么可以帮您？</p>
           <div class="quick-questions">
             <div v-for="q in quickQs" :key="q.text" @click="sendQuick(q.text)" class="quick-question">
               <div class="quick-question-icon">{{ q.icon }}</div>
@@ -47,7 +47,7 @@
               </div>
             </div>
 
-            <!-- 4. 航班列表 -->
+            <!-- 4. 订单列表 -->
             <div v-if="msg.type === 'flight_list'" class="flight-box">
               <div class="flight-title"><strong>{{ msg.content.title }}</strong></div>
               <div class="flight-list">
@@ -258,7 +258,7 @@ const fetchRecommendations = async (lastQuery) => {
     const data = await res.json();
     recQuestions.value = data.item?.recommended_questions || [];
     // 模拟业务推荐数据
-    recBusiness.value = ["在线值机", "延误证明", "失物招领"];
+    recBusiness.value = ["在线发货", "延误证明", "失物招领"];
   } finally {
     recLoading.value = false;
   }

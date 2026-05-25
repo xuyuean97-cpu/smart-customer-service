@@ -268,7 +268,7 @@
                     </div>
                     <div class="form-group">
                         <label for="tags">标签 (用逗号分隔)</label>
-                        <input type="text" id="tags" placeholder="例如: 值机,登机,服务">
+                        <input type="text" id="tags" placeholder="例如: 发货,配送,服务">
                     </div>
                     <div class="form-group">
                         <label for="images">图片链接 (用逗号分隔)</label>
@@ -276,7 +276,7 @@
                     </div>
                     <div class="form-group">
                         <label for="services">服务 (用逗号分隔)</label>
-                        <input type="text" id="services" placeholder="例如: 机场服务,客户服务">
+                        <input type="text" id="services" placeholder="例如: 电商服务,客户服务">
                     </div>
                     <button class="btn" onclick="addQA()">添加QA对</button>
                     <button class="btn btn-secondary" onclick="clearAddForm()">清空表单</button>
@@ -556,24 +556,24 @@
         function fillSampleBatch() {
             const sampleData = [
                 {
-                    "question": "如何办理登机手续？",
-                    "answer": "您可以通过以下方式办理登机手续：1. 网上值机 2. 手机App值机 3. 机场自助值机 4. 人工柜台值机",
-                    "tags": ["值机", "登机", "服务流程"],
+                    "question": "如何办理配送手续？",
+                    "answer": "您可以通过以下方式办理配送手续：1. 网上发货 2. 手机App发货 3. 平台自助发货 4. 人工柜台发货",
+                    "tags": ["发货", "配送", "服务流程"],
                     "images": ["https://example.com/checkin.jpg"],
-                    "services": ["机场服务", "客户服务"],
+                    "services": ["电商服务", "客户服务"],
                     "extra_fields": {"expert_id": "expert_001"}
                 },
                 {
-                    "question": "可以携带多少行李？",
-                    "answer": "行李限制因航空公司和舱位而异。一般经济舱可免费托运20公斤行李，商务舱30公斤，头等舱40公斤。随身携带行李通常限制在7公斤以内。",
-                    "tags": ["行李", "托运", "限制"],
+                    "question": "可以携带多少包裹？",
+                    "answer": "包裹限制因航空公司和舱位而异。一般经济舱可免费寄送20公斤包裹，商务舱30公斤，头等舱40公斤。随身携带包裹通常限制在7公斤以内。",
+                    "tags": ["包裹", "寄送", "限制"],
                     "images": [],
-                    "services": ["行李服务"],
+                    "services": ["包裹服务"],
                     "extra_fields": {"expert_id": "expert_002"}
                 },
                 {
-                    "question": "航班延误怎么办？",
-                    "answer": "航班延误时：1. 保持冷静，关注航空公司通知 2. 了解延误原因和预计起飞时间 3. 申请餐食或住宿补偿 4. 如需要可申请改签或退票",
+                    "question": "订单延误怎么办？",
+                    "answer": "订单延误时：1. 保持冷静，关注航空公司通知 2. 了解延误原因和预计起飞时间 3. 申请餐食或住宿补偿 4. 如需要可申请改签或退票",
                     "tags": ["延误", "补偿", "改签"],
                     "images": [],
                     "services": ["客户服务", "投诉处理"],

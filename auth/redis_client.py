@@ -26,7 +26,7 @@ def delete_sms_code(phone: str):
     """删除验证码"""
     key = f"auth:sms:{phone}"
     redis_client.delete(key)
-    
+
 def check_sms_cooldown(phone: str) -> bool:
     """检查是否处于冷却期 (返回 True 表示需要等待)"""
     key = f"auth:sms:cooldown:{phone}"

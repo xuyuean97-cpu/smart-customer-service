@@ -48,7 +48,7 @@ client = OpenAI(api_key="8a70345b54344f4a8b07659e95c9eBnmSdbQbNJT7", base_url="h
 def your_llm_app(input: str):
     def retriever(input: str):
         return ["Hardcoded text chunks from your vector database"]
-    
+
     @observe(name="generator", metrics=[AnswerRelevancyMetric(model=chatmodel)])
     def generator(input: str, retrieved_chunks: List[str]):
         res = client.chat.completions.create(

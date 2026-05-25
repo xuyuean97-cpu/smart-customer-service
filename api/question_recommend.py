@@ -12,39 +12,39 @@ router = APIRouter(prefix="/api/v1/question-recommend", tags=["问题推荐"])
 async def get_question_recommendations(request: QuestionRecommendRequest, http_request: Request):
     """
     获取问题推荐（非流式接口）
-    
+
     基于用户的当前问题和上下文，推荐相关的后续问题
     """
     logger.info(f"收到问题推荐请求 - ThreadID: {request.thread_id}, UserID: {request.user_id}, Query: {request.query or 'None'}, HasImage: {bool(request.image)}")
-    
+
     # 验证必要字段
     if not request.thread_id or not request.user_id:
         logger.error("问题推荐请求缺少必要字段")
         raise HTTPException(status_code=400, detail="thread_id和user_id为必填字段")
-    
+
     # query和image的验证已在模型层面完成，这里不需要额外验证
-    
+
     # 获取请求头中的token
     token = http_request.headers.get("token", "")
-    
+
     # 处理metadata，提取系统参数
     metadata = request.metadata or {}
     Is_translate = metadata.get("Is_translate", False)
     Is_emotion = metadata.get("Is_emotion", False)
-    
+
     # 提取技术环境信息字段
     query_source = metadata.get("query_source","小程序")
     query_device = metadata.get("query_device","手机")
     query_ip = metadata.get("query_ip","")
     network_type = metadata.get("network_type","5g")
-    
+
     # 构建技术环境metadata
     technical_metadata = {}
     technical_metadata["query_source"] = query_source
     technical_metadata["query_device"] = query_device
     technical_metadata["query_ip"] = query_ip
     technical_metadata["network_type"] = network_type
-    
+
     # Is_translate = True
     # Is_emotion = True
     try:
@@ -57,7 +57,7 @@ async def get_question_recommendations(request: QuestionRecommendRequest, http_r
                 "content_type": request.image.content_type,
                 "data": request.image.data
             }
-        
+
         # 构建线程配置
         threads = {
             "configurable": {
@@ -70,7 +70,7 @@ async def get_question_recommendations(request: QuestionRecommendRequest, http_r
                 "Is_emotion": Is_emotion,
                 "metadata": technical_metadata
             }
-        } 
+        }
         logger.info(f"开始处理问题推荐: {request.query or '图片输入'}")
         result = await graph_manager.process_chat_message(
             message=request.query or '图片识别和问题推荐',
@@ -80,8 +80,8 @@ async def get_question_recommendations(request: QuestionRecommendRequest, http_r
         logger.info(f"返回结果类型: {type(result)},{result}")
         recommended_questions = json.loads(result)
 
-        
-        processing_time = round(time.time() - start_time, 2)     
+
+        processing_time = round(time.time() - start_time, 2)
         # 构造响应
         response_item = QuestionRecommendItem(
             thread_id=request.thread_id,
@@ -89,24 +89,24 @@ async def get_question_recommendations(request: QuestionRecommendRequest, http_r
             recommended_questions=recommended_questions,
             processing_time=f"{processing_time}s"
         )
-        
+
         return QuestionRecommendResponse(
             ret_code="000000",
             ret_msg="操作成功",
             item=response_item.model_dump()
         )
-        
+
     except Exception as e:
         logger.error(f"问题推荐处理异常: {str(e)}", exc_info=True)
-        
+
         # 返回错误响应
         error_item = QuestionRecommendItem(
             thread_id=request.thread_id,
             user_id=request.user_id,
-            recommended_questions=["是否可以七天无理由退货？", "充电宝可以放在随身行李里吗？", "充电宝的安全检查要求是什么？"],
+            recommended_questions=["是否可以七天无理由退货？", "如何查询我的订单物流信息？", "优惠券过期了还能补发吗？"],
             processing_time="0s"
         )
-        
+
         return QuestionRecommendResponse(
             ret_code="999999",
             ret_msg="问题推荐服务暂时不可用",

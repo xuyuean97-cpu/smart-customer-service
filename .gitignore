@@ -177,3 +177,12 @@ cython_debug/
 .env
 .env.*
 !.env.example
+admin/node_modules/
+admin/dist/
+
+# Project specific
+logs/
+docs/assets/
+.deepeval/
+.claude/
+*.log
