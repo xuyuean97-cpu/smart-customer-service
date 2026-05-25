@@ -179,3 +179,10 @@ cython_debug/
 !.env.example
 admin/node_modules/
 admin/dist/
+
+# Project specific
+logs/
+docs/assets/
+.deepeval/
+.claude/
+*.log

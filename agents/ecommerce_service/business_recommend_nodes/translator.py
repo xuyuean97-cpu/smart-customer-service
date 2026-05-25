@@ -1,9 +1,6 @@
 """
 多语言支持节点
 """
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig

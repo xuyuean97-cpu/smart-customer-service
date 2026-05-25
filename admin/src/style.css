@@ -68,12 +68,218 @@
 /* 深色模式 */
 html.dark {
   --color-bg: #0f1419;
-  --color-bg-secondary: #1a1f36;
+  --color-bg-secondary: #161b2e;
   --color-border: #2d3748;
   --color-text: #e5e7eb;
   --color-text-secondary: #9ca3af;
   --color-text-tertiary: #6b7280;
   --color-text-disabled: #4b5563;
+  --color-white: #1a2030;
+
+  /* Element Plus 深色模式覆盖 */
+  --el-bg-color: #161b2e;
+  --el-bg-color-page: #0f1419;
+  --el-bg-color-overlay: #1f2844;
+  --el-fill-color: #1f2844;
+  --el-fill-color-light: #1a2030;
+  --el-fill-color-lighter: #161b2e;
+  --el-fill-color-extra-light: #141927;
+  --el-fill-color-blank: #161b2e;
+
+  --el-text-color-primary: #e5e7eb;
+  --el-text-color-regular: #9ca3af;
+  --el-text-color-secondary: #6b7280;
+  --el-text-color-disabled: #4b5563;
+  --el-text-color-placeholder: #6b7280;
+
+  --el-border-color: #2d3748;
+  --el-border-color-light: #2d3748;
+  --el-border-color-lighter: #243042;
+  --el-border-color-extra-light: #1e2a3d;
+
+  --el-mask-color: rgba(0, 0, 0, 0.7);
+  --el-mask-color-extra-light: rgba(0, 0, 0, 0.3);
+
+  --el-box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.5);
+  --el-box-shadow-light: 0 2px 8px 0 rgba(0, 0, 0, 0.4);
+  --el-box-shadow-lighter: 0 1px 4px 0 rgba(0, 0, 0, 0.3);
+}
+
+html.dark .el-table {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text);
+}
+
+html.dark .el-table th,
+html.dark .el-table__header th {
+  background-color: #1a2030;
+  color: var(--color-text);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .el-table__body td {
+  background-color: var(--color-bg-secondary);
+  border-bottom-color: var(--color-border);
+  color: var(--color-text);
+}
+
+html.dark .el-table__body tr:hover > td {
+  background-color: #1f2844 !important;
+}
+
+html.dark .el-table__empty-block {
+  background-color: var(--color-bg-secondary);
+}
+
+html.dark .el-dialog {
+  background-color: #1a2030;
+  border: 1px solid var(--color-border);
+}
+
+html.dark .el-dialog__header {
+  background-color: #1a2030;
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .el-dialog__body {
+  background-color: #1a2030;
+  color: var(--color-text);
+}
+
+html.dark .el-drawer {
+  background-color: #1a2030;
+}
+
+html.dark .el-drawer__header {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .el-input__wrapper {
+  background-color: #1f2844;
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+
+html.dark .el-input__wrapper:hover {
+  border-color: #4b5563;
+}
+
+html.dark .el-input__inner {
+  background-color: transparent;
+  color: var(--color-text);
+}
+
+html.dark .el-input__inner::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+html.dark .el-select__wrapper {
+  background-color: #1f2844;
+  border-color: var(--color-border);
+  box-shadow: none;
+  color: var(--color-text);
+}
+
+html.dark .el-select-dropdown {
+  background-color: #1a2030;
+  border-color: var(--color-border);
+}
+
+html.dark .el-select-dropdown__item {
+  color: var(--color-text);
+}
+
+html.dark .el-select-dropdown__item:hover {
+  background-color: #1f2844;
+}
+
+html.dark .el-card {
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-border);
+}
+
+html.dark .el-tag {
+  border-color: transparent;
+}
+
+html.dark .el-date-editor .el-input__wrapper {
+  background-color: #1f2844;
+}
+
+html.dark .el-date-picker {
+  background-color: #1a2030;
+  border-color: var(--color-border);
+}
+
+html.dark .el-date-table td.current:not(.disabled) .el-date-table-cell__text {
+  background-color: var(--color-primary);
+}
+
+html.dark .el-pagination button,
+html.dark .el-pagination .el-pager li {
+  background-color: #1f2844;
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+html.dark .el-pagination .el-pager li.is-active {
+  background-color: var(--color-primary);
+  color: #fff;
+}
+
+html.dark .el-message-box {
+  background-color: #1a2030;
+  border-color: var(--color-border);
+}
+
+html.dark .el-tabs__header {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .el-tabs__item {
+  color: var(--color-text-secondary);
+}
+
+html.dark .el-tabs__item.is-active {
+  color: var(--color-primary-light);
+}
+
+html.dark .el-descriptions__cell {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+html.dark .el-descriptions__label {
+  color: var(--color-text-secondary);
+}
+
+/* 主题变量别名（兼容 AdminLayout scoped CSS 中使用的旧变量名） */
+:root {
+  --bg-primary: var(--color-bg);
+  --bg-secondary: var(--color-bg-secondary);
+  --bg-tertiary: #eef2f5;
+  --bg-elevated: #e5e9ef;
+  --border-color: var(--color-border);
+  --text-primary: var(--color-text);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-tertiary);
+  --accent-blue: var(--color-primary-light);
+  --accent-cyan: var(--color-info);
+  --accent-green: var(--color-success);
+  --accent-red: var(--color-danger);
+  --accent-purple: #8b5cf6;
+}
+
+html.dark {
+  --bg-primary: #0f1419;
+  --bg-secondary: #161b2e;
+  --bg-tertiary: #1a2030;
+  --bg-elevated: #1f2844;
+  --border-color: #2d3748;
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
 }
 
 html,

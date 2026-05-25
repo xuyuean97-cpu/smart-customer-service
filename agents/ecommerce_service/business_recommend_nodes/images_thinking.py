@@ -1,9 +1,6 @@
 """
 路由节点
 """
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
 from agents.ecommerce_service.state import BusinessRecommendState
 from langchain_core.runnables import RunnableConfig
 from langchain_core.prompts import ChatPromptTemplate

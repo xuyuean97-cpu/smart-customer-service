@@ -9,7 +9,6 @@ import sys
 import os
 import uuid
 from datetime import datetime, timedelta
-from copy import deepcopy
 
 # 确保项目根目录在 Python path 中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -137,7 +136,7 @@ async def main():
     # ============================================================
     from agents.ecommerce_service.context_engineering.memory_manager import memory_manager
     await memory_manager.initialize()
-    print(f"[1/4] Memory Manager 已初始化")
+    print("[1/4] Memory Manager 已初始化")
 
     # ============================================================
     # Step 2: 注入测试对话
@@ -178,7 +177,7 @@ async def main():
     # ============================================================
     # Step 3: 触发画像提取
     # ============================================================
-    print(f"[3/4] 正在提取用户画像...")
+    print("[3/4] 正在提取用户画像...")
 
     try:
         from agents.ecommerce_service.context_engineering.profile.profile_extractor import (
@@ -243,7 +242,7 @@ async def main():
     # Step 4: 验证
     # ============================================================
     import httpx
-    print(f"\n[4/4] 验证 API...")
+    print("\n[4/4] 验证 API...")
     try:
         async with httpx.AsyncClient(base_url="http://localhost:8081", timeout=30) as c:
             r = await c.post(f"/memory/v1/profile/{USER_ID}/extract", json={
@@ -265,7 +264,7 @@ async def main():
                         if v:
                             print(f"    {k}: {str(v)[:120]}")
                 else:
-                    print(f"  (画像为空或尚未生成)")
+                    print("  (画像为空或尚未生成)")
     except Exception as e:
         print(f"  ⚠ API 验证失败 (服务未启动?): {e}")
 

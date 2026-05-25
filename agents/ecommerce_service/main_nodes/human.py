@@ -2,10 +2,7 @@
 """
 人工转接 + 工单创建节点
 """
-import sys
-import os
 import uuid
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
 from langchain_core.runnables import RunnableConfig
 from agents.ecommerce_service.state import EcommerceMainServiceState
 from langchain_core.messages import AIMessage

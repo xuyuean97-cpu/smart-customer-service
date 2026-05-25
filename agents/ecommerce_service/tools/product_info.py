@@ -1,6 +1,3 @@
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 import asyncio
 from text2kb.retrieval import retrieve_from_kb
 from langchain_core.messages import AnyMessage
@@ -32,20 +29,11 @@ async def product_policy_query2docs_main(user_question: str, messages: List[AnyM
     query_list = [user_question]
 
     try:
-        # 第一步：并行完成意图重写
-        rewritten_query_task = comprehensive_query_transform(user_query, 'rewrite', messages)
-        step_back_query_task = comprehensive_query_transform(user_query, 'step_back', messages)
-
-        rewritten_query, step_back_query = await asyncio.gather(
-            rewritten_query_task,
-            step_back_query_task,
-            return_exceptions=True
-        )
+        # 第一步：意图重写（跳过 step_back，省 3s）
+        rewritten_query = await comprehensive_query_transform(user_query, 'rewrite', messages)
 
         if rewritten_query and not isinstance(rewritten_query, Exception):
             query_list.append(str(rewritten_query))
-        if step_back_query and not isinstance(step_back_query, Exception):
-            query_list.append(str(step_back_query))
 
         logger.info(f"电商检索重写后的问题序列: {query_list}")
 
@@ -149,21 +137,12 @@ async def product_info_query2docs(user_question: str, messages: List[AnyMessage]
     logger.info("执行简化版商品知识检索")
     user_query = user_question
 
-    # 并行重写
-    rewritten_query_task = comprehensive_query_transform(user_query, 'rewrite', messages)
-    step_back_query_task = comprehensive_query_transform(user_query, 'step_back', messages)
-
-    rewritten_query, step_back_query = await asyncio.gather(
-        rewritten_query_task,
-        step_back_query_task,
-        return_exceptions=True
-    )
+    # 重写（跳过 step_back）
+    rewritten_query = await comprehensive_query_transform(user_query, 'rewrite', messages)
 
     query_list = [user_question]
     if rewritten_query and not isinstance(rewritten_query, Exception):
         query_list.append(rewritten_query)
-    if step_back_query and not isinstance(step_back_query, Exception):
-        query_list.append(step_back_query)
 
     # 检索
     retrieval_tasks = [

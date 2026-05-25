@@ -39,7 +39,14 @@
               <path d="M9 16h6"/>
             </svg>
             <span>工单管理</span>
-            <span class="nav-badge">5</span>
+            <span class="nav-badge" v-if="ticketCount > 0">{{ ticketCount }}</span>
+          </router-link>
+          <router-link to="/expert-review" class="nav-item" :class="{ active: route.path === '/expert-review' }">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            <span>专家审核</span>
           </router-link>
           <router-link to="/conversations" class="nav-item" :class="{ active: route.path === '/conversations' }">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -55,6 +62,13 @@
               <path d="M16 3.13a4 4 0 010 7.75"/>
             </svg>
             <span>用户管理</span>
+          </router-link>
+          <router-link to="/platforms" class="nav-item" :class="{ active: route.path === '/platforms' }">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+            </svg>
+            <span>平台对接</span>
           </router-link>
         </div>
         
@@ -110,6 +124,24 @@
             </svg>
             <input type="text" placeholder="搜索..." class="search-input" />
           </div>
+                    <button class="icon-btn theme-btn" @click="theme.toggle()" :title="theme.isDark ? '切换到亮色模式' : '切换到暗色模式'">
+            <!-- 暗色模式：显示太阳图标 -->
+            <svg v-if="theme.isDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            <!-- 亮色模式：显示月亮图标 -->
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+            </svg>
+          </button>
           <button class="icon-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -131,10 +163,21 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { ticketsApi } from '../api'
+import { useThemeStore } from '../stores/theme'
 const route = useRoute()
 const auth = useAuthStore()
+const ticketCount = ref(0)
+const theme = useThemeStore()
+onMounted(async () => {
+  try {
+    const resp = await ticketsApi.list({ limit: 1 })
+    ticketCount.value = resp.data.total || 0
+  } catch { ticketCount.value = 0 }
+})
 </script>
 
 <style scoped>
@@ -454,7 +497,13 @@ const auth = useAuthStore()
   border-radius: 50%;
   border: 2px solid var(--bg-tertiary);
 }
+.theme-btn svg {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+}
 
+.theme-btn:hover svg {
+  transform: rotate(20deg) scale(1.15);
+}
 .status-indicator {
   display: flex;
   align-items: center;

@@ -88,7 +88,16 @@
       "Bash(findstr /b \"DB_\" .env)",
       "Bash(findstr /b \"POSTGRES\" .env)",
       "Bash(git checkout *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8081/health)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8081/health)",
+      "Bash(start /b cmd /c uv run main.py)",
+      "Bash(echo \"Server starting... PID=$!\")",
+      "Bash(curl -s http://localhost:8081/openapi.json)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); paths=d['paths']; [print\\(f'{m.upper\\(\\):6s} {p:50s} {list\\(v[m].get\\(\\\\\"responses\\\\\",{}\\).keys\\(\\)\\)[0] if v[m].get\\(\\\\\"responses\\\\\"\\) else \\\\\"?\\\\\"}'\\) for p,v in sorted\\(paths.items\\(\\)\\) for m in v if m!='parameters']\")",
+      "Bash(curl -s -o /dev/null -w \"Server: HTTP %{http_code}\\\\n\" http://localhost:8081/health)",
+      "Bash(uv pip *)",
+      "PowerShell(npm config set proxy http://127.0.0.1:6789; npm config set https-proxy http://127.0.0.1:6789; $env:HTTP_PROXY = \"http://127.0.0.1:6789\"; $env:HTTPS_PROXY = \"http://127.0.0.1:6789\"; npx skills find \"code review best practices\" --json 2>$null; npm config delete proxy; npm config delete https-proxy)",
+      "PowerShell(npm config set proxy http://127.0.0.1:6789; npm config set https-proxy http://127.0.0.1:6789; $env:HTTP_PROXY = \"http://127.0.0.1:6789\"; $env:HTTPS_PROXY = \"http://127.0.0.1:6789\"; npx skills add laurigates/claude-plugins@python-code-quality -a claude-code -g -y; npm config delete proxy; npm config delete https-proxy)",
+      "PowerShell(npm config set proxy http://127.0.0.1:6789; npm config set https-proxy http://127.0.0.1:6789; $env:HTTP_PROXY = \"http://127.0.0.1:6789\"; $env:HTTPS_PROXY = \"http://127.0.0.1:6789\"; npx skills add bobmatnyc/claude-mpm-skills@pytest -a claude-code -g -y; npm config delete proxy; npm config delete https-proxy)"
     ]
   }
 }

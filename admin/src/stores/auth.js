@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import client from '../api/client'
+import { authApi } from '../api'
 import router from '../router'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -10,33 +10,29 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoggedIn = computed(() => !!token.value)
 
   async function login(phone, password) {
-    const resp = await client.post('/api/auth/login', {
-      phone,
-      password,
-      login_type: 'password',
-    })
+    const resp = await authApi.login(phone, password)
     token.value = resp.data.access_token
-    user.value = { phone: resp.data.phone || phone }
+    user.value = { phone: resp.data.phone || phone, username: resp.data.username }
     localStorage.setItem('admin_token', token.value)
     localStorage.setItem('admin_user', JSON.stringify(user.value))
     return resp.data
   }
 
   async function loginBySms(phone, code) {
-    const resp = await client.post('/api/auth/login', {
-      phone,
-      code,
-      login_type: 'code',
-    })
+    const resp = await authApi.loginBySms(phone, code)
     token.value = resp.data.access_token
-    user.value = { phone }
+    user.value = { phone, username: resp.data.username }
     localStorage.setItem('admin_token', token.value)
     localStorage.setItem('admin_user', JSON.stringify(user.value))
     return resp.data
   }
 
   async function sendSms(phone) {
-    await client.post('/api/auth/send-sms', { phone })
+    await authApi.sendSms(phone)
+  }
+
+  async function changePassword(phone, oldPassword, newPassword) {
+    await authApi.changePassword(phone, oldPassword, newPassword)
   }
 
   function logout() {
@@ -47,5 +43,14 @@ export const useAuthStore = defineStore('auth', () => {
     router.push('/login')
   }
 
-  return { token, user, isLoggedIn, login, loginBySms, sendSms, logout }
+  return { 
+    token, 
+    user, 
+    isLoggedIn, 
+    login, 
+    loginBySms, 
+    sendSms, 
+    changePassword,
+    logout 
+  }
 })

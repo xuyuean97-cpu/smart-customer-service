@@ -54,6 +54,7 @@ class ExpertReviewRequest(BaseModel):
     corrected_response: Optional[str] = Field(None, description="专家修正的回答内容")
     review_notes: Optional[str] = Field(None, description="审核备注")
     expert_id: Optional[str] = Field(None, description="审核专家ID")
+    response: Optional[str] = Field(None, description="AI原始回复（用于自动录入知识库）")
 
 
 class BatchExpertReviewRequest(BaseModel):
@@ -199,7 +200,9 @@ async def expert_review_conversation(request: ExpertReviewRequest):
             expert_approved=request.expert_approved,
             quality_score=request.quality_score,
             corrected_response=request.corrected_response,
-            expert_id=request.expert_id
+            expert_id=request.expert_id,
+            response=request.response,
+            review_notes=request.review_notes,
         )
 
         if success:

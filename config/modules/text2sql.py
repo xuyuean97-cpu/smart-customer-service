@@ -5,12 +5,12 @@ import os
 
 # 开发环境特定配置
 TEXT2SQL_CONFIG = {
-    # LLM配置
+    # LLM配置 — 用 qwen-plus 替代 deepseek（SQL 生成不需要推理，速度优先）
     "llm": {
-        "api_key": os.getenv("LLM_API_KEY"),
-        "base_url": os.getenv("LLM_BASE_URL"),
-        "model": os.getenv("LLM_MODEL"),
-        "temperature": float(os.getenv("LLM_TEMPERATURE", "0.7")),
+        "api_key": os.getenv("ROUTER_LLM_API_KEY", os.getenv("LLM_API_KEY")),
+        "base_url": os.getenv("ROUTER_LLM_BASE_URL", os.getenv("LLM_BASE_URL")),
+        "model": os.getenv("ROUTER_LLM_MODEL", "qwen-plus"),
+        "temperature": float(os.getenv("LLM_TEMPERATURE", "0.3")),
         "max_tokens": int(os.getenv("LLM_MAX_TOKENS", 20000))
     },
 

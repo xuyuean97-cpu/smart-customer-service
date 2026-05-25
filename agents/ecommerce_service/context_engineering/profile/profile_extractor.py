@@ -1,6 +1,3 @@
-import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
 import logging
 import statistics
 from typing import List, Dict, Optional, Any
@@ -421,10 +418,6 @@ def create_profile_extractor(llm_client: Optional[ChatOpenAI] = None) -> Profile
     """创建电商用户画像提取器实例"""
     if llm_client is None:
         try:
-            import sys
-            import os
-            sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
-            # 指向你的全局大模型实例
             from agents.ecommerce_service.core import structed_model
             llm_client = structed_model
         except ImportError as err:

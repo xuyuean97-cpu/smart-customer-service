@@ -1,6 +1,7 @@
 import json
 import time
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
+from fastapi.responses import StreamingResponse
 from models.schemas import (
     TextEventContent, RichContentEventContent, FormEventContent, OrderListEventContent, OrderInfo, EndEventContent, ErrorEventContent, ChatEvent
 )
@@ -117,19 +118,23 @@ async def ecommerce_chat_websocket(websocket: WebSocket):
                 "metadata": metadata,
             }
             # LangGraph 线程隔离 + 记忆加载
-            # 4. 发送开始事件
+            # 4. 发送开始事件 + 即时 ACK（用户感知 <500ms）
             await websocket.send_text(json.dumps({
                 "event": "start",
                 "thread_id": thread_id,
                 "user_id": user_id
             }, ensure_ascii=False))
+            await websocket.send_text(json.dumps({
+                "event": "thinking",
+                "text": "亲，收到您的问题了，小二正在为您查询中～"
+            }, ensure_ascii=False))
 
             result_count = 0
 
             try:
-                # ------------------------------------------------------------
-                # 逻辑优化版 Graph 执行
-                # ------------------------------------------------------------
+            # ------------------------------------------------------------
+            # 逻辑优化版 Graph 执行
+            # ------------------------------------------------------------
 
                 # 防范性检查
                 # if "ecommerce_service_graph" not in graph_manager._registered_graphs:
@@ -265,7 +270,120 @@ async def ecommerce_chat_websocket(websocket: WebSocket):
             await websocket.close()
         except Exception:
             pass
-from fastapi import Request  # noqa: E402
+
+
+# ── 流式 HTTP (SSE) 端点 ──
+
+from pydantic import BaseModel, Field  # noqa: E402
+
+
+class ChatStreamRequest(BaseModel):
+    thread_id: str = Field(..., description="会话 ID")
+    user_id: str = Field(..., description="用户 ID")
+    tenant_id: str = Field(default="default")
+    query: str = Field(default="", description="用户问题")
+    image: dict | None = Field(default=None, description="图片数据 {filename, content_type, data}")
+    metadata: dict = Field(default_factory=dict)
+
+
+async def _run_graph_stream(graph_inputs: dict, threads: dict):
+    """共享的 LangGraph 流式执行器，产出 SSE 事件字符串"""
+    event_gen = EventGenerator()
+    result_count = 0
+    INTERNAL_NODES = ["router", "translate_input_node", "emotion_node", "images_thinking_node", "translate_output_node"]
+
+    # 1. 发送开始事件
+    yield f'data: {json.dumps({"event":"start","thread_id":threads["configurable"]["thread_id"],"user_id":threads["configurable"]["user_id"]}, ensure_ascii=False)}\n\n'
+    # 2. 即时 ACK — 第三方平台通常 3-5s 超时，这里 100ms 内返回
+    yield f'data: {json.dumps({"event":"thinking","text":"亲，收到您的问题了，小二正在为您查询中～"}, ensure_ascii=False)}\n\n'
+
+    try:
+        async with graph_manager.get_compiled_graph("ecommerce_service_graph") as app:
+            async for event in app.astream(input=graph_inputs, config=threads, stream_mode="updates"):
+                for node_name, node_output in event.items():
+                    result_count += 1
+
+                    if node_name in INTERNAL_NODES:
+                        continue
+
+                    content_to_send = None
+
+                    if isinstance(node_output, dict) and "messages" in node_output:
+                        messages = node_output["messages"]
+                        if isinstance(messages, list) and len(messages) > 0:
+                            last_msg = messages[-1]
+                            if hasattr(last_msg, 'content'):
+                                content_to_send = str(last_msg.content)
+                            elif isinstance(last_msg, dict):
+                                content_to_send = last_msg.get('content')
+                    elif isinstance(node_output, dict) and "data" in node_output:
+                        data = node_output["data"]
+                        if isinstance(data, str):
+                            content_to_send = data
+                        elif isinstance(data, dict):
+                            content_to_send = json.dumps(data, ensure_ascii=False)
+
+                    if content_to_send:
+                        yield f'data: {json.dumps({"event":"text","text":str(content_to_send)}, ensure_ascii=False)}\n\n'
+
+    except Exception as e:
+        logger.error(f"Graph 执行异常: {e}", exc_info=True)
+        yield f'data: {json.dumps({"event":"error","error":str(e)}, ensure_ascii=False)}\n\n'
+
+    # 结束事件
+    end_event = event_gen.create_end_event(suggestions=[], metadata={"count": result_count})
+    yield f'data: {json.dumps({"event":"end","data":end_event.model_dump()}, ensure_ascii=False)}\n\n'
+
+
+@ecommerce_router.post("/chat/stream")
+async def ecommerce_chat_stream(body: ChatStreamRequest):
+    """
+    流式 HTTP 聊天 (Server-Sent Events)
+
+    curl 示例:
+      curl -X POST http://localhost:8081/api/v1/ecommerce-assistant/chat/stream \
+        -H 'Content-Type: application/json' \
+        -d '{"thread_id":"t1","user_id":"u1","query":"你们有什么显示器？"}' \
+        --no-buffer
+
+    前端 fetch 示例:
+      const resp = await fetch('/api/v1/ecommerce-assistant/chat/stream', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({thread_id:'t1', user_id:'u1', query:'你好'})
+      })
+      const reader = resp.body.getReader()
+      // 逐行解析 SSE 格式
+    """
+    threads = {
+        "configurable": {
+            "user_id": body.user_id,
+            "thread_id": body.thread_id,
+            "tenant_id": body.tenant_id,
+            "user_query": body.query,
+            "image_data": body.image,
+            "metadata": body.metadata,
+        },
+    }
+    graph_inputs = {
+        "question": body.query,
+        "user_id": body.user_id,
+        "tenant_id": body.tenant_id,
+        "image_data": body.image,
+        "metadata": body.metadata,
+    }
+
+    return StreamingResponse(
+        _run_graph_stream(graph_inputs, threads),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # 禁用 nginx 缓冲
+        },
+    )
+
+
 import base64  # noqa: E402
 import struct  # noqa: E402
 import random  # noqa: E402

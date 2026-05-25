@@ -9,7 +9,7 @@ from config.utils import config_manager
 from common.logging import get_logger
 # 从配置文件获取模型配置
 model_config = config_manager.get_agents_config().get("llm", {})
-max_msg_len = model_config.get("max_history_turns", 20)
+max_msg_len = model_config.get("max_history_turns", 5)
 max_tokens = model_config.get("max_tokens", 10000)
 memery_delay = 60*30
 

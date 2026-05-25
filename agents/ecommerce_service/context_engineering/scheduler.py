@@ -62,7 +62,13 @@ class MemoryScheduler:
         schedule.every().monday.at("03:00").do(self._schedule_deep_insight_analysis)
         schedule.every().day.at("00:01").do(self._reset_daily_records)
 
-        logger.info("定时任务已配置：每日画像聚合(02:00)、深度画像分析(周一03:00)")
+        # 平台 Token 自动刷新（每4小时检查一次）
+        schedule.every(4).hours.do(self._schedule_token_refresh)
+
+        # 京东订单定时同步（每小时拉取新订单）
+        schedule.every().hour.do(self._schedule_jd_order_sync)
+
+        logger.info("定时任务已配置：每日画像聚合(02:00)、深度画像分析(周一03:00)、Token刷新(每4小时)、京东订单同步(每小时)")
 
     def _run_scheduler(self):
         """运行调度器主循环"""
@@ -93,6 +99,61 @@ class MemoryScheduler:
             self.processed_users.clear()
             self.last_reset_date = current_date
             logger.info("每日处理记录已重置")
+
+    def _schedule_token_refresh(self):
+        """调度平台 Token 刷新任务"""
+        logger.info("开始检查平台 Token 有效期")
+        asyncio.run(self._refresh_expiring_tokens())
+
+    def _schedule_jd_order_sync(self):
+        """调度京东订单同步任务"""
+        logger.info("开始京东订单定时同步")
+        asyncio.run(self._sync_jd_orders())
+
+    async def _refresh_expiring_tokens(self):
+        """刷新即将过期的平台 Token"""
+        try:
+            from agents.ecommerce_service.channels.platforms.credential import get_expiring_credentials, save_credential
+            from agents.ecommerce_service.channels.platforms import get_adapter
+
+            # 获取3天内即将过期的凭据
+            expiring = await get_expiring_credentials(days=3)
+            if not expiring:
+                logger.info("没有即将过期的平台 Token")
+                return
+
+            success_count = 0
+            for cred in expiring:
+                try:
+                    adapter = get_adapter(cred.platform)
+                    if not adapter:
+                        continue
+
+                    adapter.credential = cred
+                    new_cred = await adapter.refresh_token()
+                    await save_credential("default", new_cred)
+                    success_count += 1
+                    logger.info(f"Token 刷新成功: {cred.platform}")
+
+                except Exception as e:
+                    logger.error(f"Token 刷新失败: {cred.platform} - {e}")
+
+            logger.info(f"Token 刷新完成: {success_count}/{len(expiring)}")
+
+        except Exception as e:
+            logger.error(f"Token 刷新任务异常: {e}", exc_info=True)
+
+    async def _sync_jd_orders(self):
+        """定时同步京东订单"""
+        try:
+            from agents.ecommerce_service.tools.jd_order_sync import sync_jd_orders
+
+            # 同步最近1小时的订单
+            result = await sync_jd_orders(tenant_id="default")
+            logger.info(f"京东订单同步完成: {result}")
+
+        except Exception as e:
+            logger.error(f"京东订单同步异常: {e}", exc_info=True)
 
     async def _daily_profile_aggregation(self):
         """每日画像聚合主逻辑"""

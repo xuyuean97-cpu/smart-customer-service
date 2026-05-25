@@ -8,7 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import AIMessage
 
 from agents.ecommerce_service.state import EcommerceMainServiceState
-from agents.ecommerce_service.core import filter_messages_for_agent, max_msg_len, base_model
+from agents.ecommerce_service.core import filter_messages_for_agent, max_msg_len, content_model_no_thinking as base_model
 from agents.ecommerce_service.context_engineering.prompts import main_graph_prompts
 from agents.ecommerce_service.context_engineering.agent_memory import memory_enabled_agent
 from common.logging import get_logger

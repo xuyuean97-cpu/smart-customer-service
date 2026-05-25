@@ -102,6 +102,10 @@ class GenericLLM(AsyncLLMProvider):
             if param in kwargs:
                 api_params[param] = kwargs[param]
 
+        # DeepSeek / 思考模式模型：显式关闭 thinking 避免 SQL 生成耗时 10s+
+        if "deepseek" in self.model.lower() or "v4-flash" in self.model.lower():
+            api_params["extra_body"] = {"thinking": {"type": "disabled"}}
+
         try:
             # 使用 AsyncOpenAI 客户端调用 API
             response = await self.client.chat.completions.create(**api_params)

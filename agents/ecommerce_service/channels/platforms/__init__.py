@@ -123,11 +123,10 @@ class EcommercePlatformAdapter(ABC):
 
     # ===== 可选覆盖 =====
 
-    @abstractmethod
     async def start_listener(self) -> None:
         """
         P1-7: 启动消息监听器（用于长连接平台如淘宝 TMC）
-        默认不实现（京东/微信使用 Webhook 回调）
+        默认不实现（京东/微信/拼多多/抖音使用 Webhook 回调）
         """
         pass
 

@@ -1,14 +1,10 @@
 """
 电商订单与物流信息节点
 """
-import sys
-import os
 import json
 from datetime import datetime
 
 # 保持原有路径引用逻辑
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
-
 # 假设 State 类已重命名或保持兼容
 from agents.ecommerce_service.state import EcommerceMainServiceState
 from langchain_core.runnables import RunnableConfig
@@ -16,7 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate
 # 这里的 tools 需要指向电商版的查询工具
 from agents.ecommerce_service.tools import order_query2docs, get_text2sql_instance
 from langchain_core.messages import AIMessage
-from agents.ecommerce_service.core import filter_messages_for_agent, max_msg_len, base_model, extract_order_ids_from_result
+from agents.ecommerce_service.core import filter_messages_for_agent, max_msg_len, content_model_no_thinking as base_model, extract_order_ids_from_result
 from agents.ecommerce_service.context_engineering.prompts import main_graph_prompts
 from agents.ecommerce_service.context_engineering.agent_memory import memory_enabled_agent
 from langgraph.config import get_stream_writer
@@ -140,16 +136,23 @@ async def order_logistics_agent(state: EcommerceMainServiceState, config: Runnab
     sql_result = retrieval_res.content if retrieval_res else ""
     sql_query = retrieval_res.sql if retrieval_res else ""
 
-    # 4. 调用 LLM 生成拟人化回复
+    # 4. 流式生成拟人化回复 — 逐 token 推送
+    writer = get_stream_writer()
     kb_chain = kb_prompt | base_model
-    res = await kb_chain.ainvoke({
+    full_text = ""
+    async for chunk in kb_chain.astream({
         "user_query": user_query,
         "sql": sql_query,
         "sql_result": sql_result,
         "messages": messages,
         "language": state.get("language", "zh")
-    })
-    res.name = "订单物流查询子智能体"
+    }):
+        token = chunk.content if hasattr(chunk, 'content') else str(chunk) if isinstance(chunk, str) else ""
+        if token:
+            full_text += token
+            writer({"node_name": "order_logistics_agent_node", "data": {"type": "stream", "text": token}})
+
+    res = AIMessage(content=full_text, name="订单物流查询子智能体")
 
     # 5. 异步推送结构化卡片数据到前端
     if sql_result:

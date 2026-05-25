@@ -1,10 +1,6 @@
 """
 业务办理工具模块
 """
-import sys
-import os
-# 添加项目根目录到系统路径
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 from langchain_core.tools import tool
 from pydantic import BaseModel,Field
 from langchain_core.runnables import RunnableConfig

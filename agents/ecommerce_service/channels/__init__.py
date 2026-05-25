@@ -36,3 +36,7 @@ class MessageChannel(ABC):
     async def build_reply(self, response_text: str, original_msg: ChannelMessage) -> Any:
         """构建平台特定的回复格式"""
         ...
+
+
+# 导入所有平台适配器（触发自动注册）
+from .platforms import jd, taobao, pdd, douyin  # noqa: F401, E402

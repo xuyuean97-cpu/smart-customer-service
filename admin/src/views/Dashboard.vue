@@ -1,5 +1,43 @@
 <template>
   <div class="dashboard">
+    <!-- Top Toolbar -->
+    <div class="dashboard-toolbar">
+      <div class="toolbar-left">
+        <h2>运营概览</h2>
+      </div>
+      <div class="toolbar-right">
+        <div class="filter-group">
+          <label>租户</label>
+          <select v-model="tenantId" class="filter-select" @change="loadDashboard">
+            <option value="default">默认租户</option>
+            <option value="tenant_001">租户 001</option>
+            <option value="tenant_002">租户 002</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>时间范围</label>
+          <div class="btn-group">
+            <button 
+              v-for="opt in dateOptions" 
+              :key="opt.value"
+              :class="['btn-option', { active: selectedDays === opt.value }]"
+              @click="selectDays(opt.value)"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
+        </div>
+        <button class="download-btn" @click="downloadReport" :disabled="downloadingReport">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="7,10 12,15 17,10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          {{ downloadingReport ? '下载中...' : '下载报告' }}
+        </button>
+      </div>
+    </div>
+
     <!-- Stats Grid -->
     <div class="stats-grid">
       <div class="stat-card">
@@ -9,7 +47,7 @@
               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
             </svg>
           </div>
-          <div class="stat-trend up">
+          <div class="stat-trend up" v-if="overview.total_conversations > 0">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="23,6 13.5,15.5 8.5,10.5 1,18"/>
             </svg>
@@ -61,7 +99,7 @@
             <span>+5%</span>
           </div>
         </div>
-        <div class="stat-value">{{ overview.avg_quality_score || '4.2' }}</div>
+        <div class="stat-value">{{ formatPercent(overview.avg_quality_score) }}</div>
         <div class="stat-label">平均质量分</div>
         <div class="stat-chart">
           <div class="mini-bar purple" v-for="i in 7" :key="i" :style="{ height: Math.random() * 100 + '%' }"></div>
@@ -83,7 +121,7 @@
             <span>+3%</span>
           </div>
         </div>
-        <div class="stat-value">{{ overview.resolution_rate || '89%' }}</div>
+        <div class="stat-value">{{ formatPercent(overview.resolution_rate) }}</div>
         <div class="stat-label">解决率</div>
         <div class="stat-chart">
           <div class="mini-bar cyan" v-for="i in 7" :key="i" :style="{ height: Math.random() * 100 + '%' }"></div>
@@ -94,8 +132,10 @@
         <div class="stat-header">
           <div class="stat-icon yellow">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2v20"/>
-              <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+              <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+              <circle cx="8.5" cy="7" r="4"/>
+              <line x1="20" y1="8" x2="20" y2="14"/>
+              <line x1="23" y1="11" x2="17" y2="11"/>
             </svg>
           </div>
           <div class="stat-trend down">
@@ -105,7 +145,7 @@
             <span>-2%</span>
           </div>
         </div>
-        <div class="stat-value">{{ overview.human_transfer_rate || '11%' }}</div>
+        <div class="stat-value">{{ formatPercent(overview.human_transfer_rate) }}</div>
         <div class="stat-label">转人工率</div>
         <div class="stat-chart">
           <div class="mini-bar yellow" v-for="i in 7" :key="i" :style="{ height: Math.random() * 100 + '%' }"></div>
@@ -134,18 +174,95 @@
       </div>
     </div>
 
+    <!-- Performance Cards (New) -->
+    <div class="performance-section" v-if="performance">
+      <h3 class="section-title">性能指标</h3>
+      <div class="performance-grid">
+        <div class="perf-card">
+          <div class="perf-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+              <polyline points="22,4 12,14.01 9,11.01"/>
+            </svg>
+          </div>
+          <div class="perf-content">
+            <span class="perf-value">{{ formatPercent(performance.resolution_rate) }}</span>
+            <span class="perf-label">问题解决率</span>
+          </div>
+          <div class="perf-bar">
+            <div class="perf-fill green" :style="{ width: (performance.resolution_rate || 0) * 100 + '%' }"></div>
+          </div>
+        </div>
+        <div class="perf-card">
+          <div class="perf-icon yellow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+              <circle cx="8.5" cy="7" r="4"/>
+              <line x1="20" y1="8" x2="20" y2="14"/>
+              <line x1="23" y1="11" x2="17" y2="11"/>
+            </svg>
+          </div>
+          <div class="perf-content">
+            <span class="perf-value">{{ formatPercent(performance.human_transfer_rate) }}</span>
+            <span class="perf-label">转人工比例</span>
+          </div>
+          <div class="perf-bar">
+            <div class="perf-fill yellow" :style="{ width: (performance.human_transfer_rate || 0) * 100 + '%' }"></div>
+          </div>
+        </div>
+        <div class="perf-card">
+          <div class="perf-icon purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+            </svg>
+          </div>
+          <div class="perf-content">
+            <span class="perf-value">{{ formatPercent(performance.avg_quality_score) }}</span>
+            <span class="perf-label">平均服务质量</span>
+          </div>
+          <div class="perf-bar">
+            <div class="perf-fill purple" :style="{ width: (performance.avg_quality_score || 0) * 100 + '%' }"></div>
+          </div>
+        </div>
+        <div class="perf-card">
+          <div class="perf-icon blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="4" y1="21" x2="4" y2="14"/>
+              <line x1="4" y1="10" x2="4" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12" y2="3"/>
+              <line x1="20" y1="21" x2="20" y2="16"/>
+              <line x1="20" y1="12" x2="20" y2="3"/>
+            </svg>
+          </div>
+          <div class="perf-content">
+            <span class="perf-value">{{ performance.avg_response_length || 0 }}</span>
+            <span class="perf-label">平均回复长度</span>
+          </div>
+          <div class="perf-bar">
+            <div class="perf-fill blue" style="width: 65%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Charts Section -->
     <div class="charts-section">
       <div class="chart-card large">
         <div class="card-header">
           <div class="card-title">
             <h3>对话趋势</h3>
-            <span class="card-subtitle">最近 7 天</span>
+            <span class="card-subtitle">最近 {{ selectedDays }} 天</span>
           </div>
           <div class="card-actions">
-            <button class="action-btn active">日</button>
-            <button class="action-btn">周</button>
-            <button class="action-btn">月</button>
+            <button 
+              v-for="opt in dateOptions" 
+              :key="opt.value"
+              :class="['action-btn', { active: selectedDays === opt.value }]"
+              @click="selectDays(opt.value)"
+            >
+              {{ opt.shortLabel }}
+            </button>
           </div>
         </div>
         <div ref="trendChart" class="chart-container"></div>
@@ -157,7 +274,7 @@
             <h3>活跃用户排行</h3>
             <span class="card-subtitle">Top 10</span>
           </div>
-          <button class="view-all-btn">查看全部</button>
+          <button class="view-all-btn" @click="$router.push('/users')">查看全部</button>
         </div>
         <div class="user-list">
           <div class="user-item" v-for="(user, index) in topUsers" :key="user.user_id">
@@ -168,7 +285,7 @@
               <div class="user-meta">{{ user.conversation_count }} 对话</div>
             </div>
             <div class="user-score">
-              <span class="score-value">{{ user.avg_quality || '-' }}</span>
+              <span class="score-value">{{ user.avg_quality ? (user.avg_quality * 100).toFixed(0) + '%' : '-' }}</span>
               <span class="score-label">质量分</span>
             </div>
           </div>
@@ -195,7 +312,7 @@
         </div>
         <div class="action-content">
           <h4>待处理工单</h4>
-          <p>5 个工单需要处理</p>
+          <p>查看需要处理的工单</p>
         </div>
         <svg class="action-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="9,18 15,12 9,6"/>
@@ -237,9 +354,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
-import client from '../api/client'
+import { ref, onMounted, nextTick, watch } from 'vue'
+import { ElMessage } from 'element-plus'
+import { dashboardApi, billingApi } from '../api'
 import * as echarts from 'echarts'
+
+const tenantId = ref('default')
+const selectedDays = ref(7)
+const downloadingReport = ref(false)
+
+const dateOptions = [
+  { value: 7, label: '7天', shortLabel: '日' },
+  { value: 14, label: '14天', shortLabel: '周' },
+  { value: 30, label: '30天', shortLabel: '月' },
+]
 
 const overview = ref({ 
   total_conversations: 0, 
@@ -248,9 +376,11 @@ const overview = ref({
   resolution_rate: 0, 
   human_transfer_rate: 0 
 })
+const performance = ref(null)
 const topUsers = ref([])
 const billing = ref({ total_requests: 0 })
 const trendChart = ref(null)
+let chartInstance = null
 
 function formatNumber(n) {
   if (!n) return '0'
@@ -259,22 +389,44 @@ function formatNumber(n) {
   return n.toString()
 }
 
-onMounted(async () => {
-  const [o, t, u, b] = await Promise.all([
-    client.get('/api/v1/admin/dashboard/overview'),
-    client.get('/api/v1/admin/dashboard/conversations/trend?days=7'),
-    client.get('/api/v1/admin/dashboard/users/top?limit=10'),
-    client.get('/api/v1/admin/billing/usage?days=30'),
+function formatPercent(n) {
+  if (!n && n !== 0) return '-'
+  if (n <= 1) return (n * 100).toFixed(0) + '%'
+  return n.toFixed(0) + '%'
+}
+
+function selectDays(days) {
+  selectedDays.value = days
+  loadTrend()
+}
+
+async function loadDashboard() {
+  const [o, p, u, b] = await Promise.all([
+    dashboardApi.getOverview(tenantId.value),
+    dashboardApi.getPerformance(tenantId.value),
+    dashboardApi.getTopUsers(tenantId.value, 10),
+    billingApi.getUsage(tenantId.value, 30),
   ])
   overview.value = o.data
+  performance.value = p.data
   topUsers.value = u.data.users || []
   billing.value = b.data
+  
+  await loadTrend()
+}
 
+async function loadTrend() {
+  const t = await dashboardApi.getConversationTrend(tenantId.value, selectedDays.value)
   await nextTick()
+  
   if (trendChart.value) {
-    const chart = echarts.init(trendChart.value, 'dark')
+    if (!chartInstance) {
+      chartInstance = echarts.init(trendChart.value, 'dark')
+      window.addEventListener('resize', () => chartInstance?.resize())
+    }
+    
     const points = t.data.points || []
-    chart.setOption({
+    chartInstance.setOption({
       backgroundColor: 'transparent',
       tooltip: { 
         trigger: 'axis',
@@ -326,9 +478,53 @@ onMounted(async () => {
         }
       }]
     })
-    
-    window.addEventListener('resize', () => chart.resize())
   }
+}
+
+async function downloadReport() {
+  downloadingReport.value = true
+  try {
+    const resp = await dashboardApi.getOperationalReport(tenantId.value)
+    const report = resp.data
+    
+    // Generate report content
+    const content = `运营报告 - ${new Date().toLocaleDateString()}
+=======================================
+租户ID: ${tenantId.value}
+生成时间: ${new Date().toLocaleString()}
+
+概览指标:
+- 总对话数: ${overview.value.total_conversations}
+- 活跃用户: ${overview.value.active_users_today}
+- 平均质量分: ${formatPercent(overview.value.avg_quality_score)}
+- 解决率: ${formatPercent(overview.value.resolution_rate)}
+- 转人工率: ${formatPercent(overview.value.human_transfer_rate)}
+
+API 用量:
+- 总请求数: ${billing.value.total_requests}
+- 输入 Token: ${billing.value.total_tokens_in}
+- 输出 Token: ${billing.value.total_tokens_out}
+
+${JSON.stringify(report, null, 2)}
+`
+    
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `operational_report_${new Date().toISOString().slice(0,10)}.txt`
+    link.click()
+    URL.revokeObjectURL(link.href)
+    
+    ElMessage.success('报告已下载')
+  } catch (e) {
+    ElMessage.error('下载失败: ' + (e.message || '未知错误'))
+  } finally {
+    downloadingReport.value = false
+  }
+}
+
+onMounted(() => {
+  loadDashboard()
 })
 </script>
 
@@ -337,6 +533,116 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+/* Toolbar */
+.dashboard-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.dashboard-toolbar h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.filter-select {
+  height: 34px;
+  padding: 0 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  border-color: var(--accent-blue);
+}
+
+.btn-group {
+  display: flex;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 3px;
+}
+
+.btn-option {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+.btn-option:hover {
+  color: var(--text-primary);
+}
+
+.btn-option.active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.download-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  height: 34px;
+  background: var(--accent-blue);
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.download-btn:hover {
+  background: var(--accent-blue-hover);
+}
+
+.download-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.download-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .stats-grid {
@@ -401,35 +707,12 @@ onMounted(async () => {
   height: 20px;
 }
 
-.stat-icon.blue {
-  background: rgba(59, 130, 246, 0.15);
-  color: var(--accent-blue);
-}
-
-.stat-icon.green {
-  background: rgba(34, 197, 94, 0.15);
-  color: var(--accent-green);
-}
-
-.stat-icon.purple {
-  background: rgba(168, 85, 247, 0.15);
-  color: var(--accent-purple);
-}
-
-.stat-icon.cyan {
-  background: rgba(6, 182, 212, 0.15);
-  color: var(--accent-cyan);
-}
-
-.stat-icon.yellow {
-  background: rgba(234, 179, 8, 0.15);
-  color: var(--accent-yellow);
-}
-
-.stat-icon.red {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--accent-red);
-}
+.stat-icon.blue { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+.stat-icon.green { background: rgba(34, 197, 94, 0.15); color: var(--accent-green); }
+.stat-icon.purple { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+.stat-icon.cyan { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); }
+.stat-icon.yellow { background: rgba(234, 179, 8, 0.15); color: var(--accent-yellow); }
+.stat-icon.red { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
 
 .stat-trend {
   display: flex;
@@ -439,18 +722,9 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-.stat-trend svg {
-  width: 14px;
-  height: 14px;
-}
-
-.stat-trend.up {
-  color: var(--accent-green);
-}
-
-.stat-trend.down {
-  color: var(--accent-red);
-}
+.stat-trend svg { width: 14px; height: 14px; }
+.stat-trend.up { color: var(--accent-green); }
+.stat-trend.down { color: var(--accent-red); }
 
 .stat-value {
   font-size: 28px;
@@ -485,6 +759,91 @@ onMounted(async () => {
 .mini-bar.cyan { background: var(--accent-cyan); }
 .mini-bar.yellow { background: var(--accent-yellow); }
 .mini-bar.red { background: var(--accent-red); }
+
+/* Performance Section */
+.performance-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.performance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.perf-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.perf-icon {
+  width: 40px;
+  height: 40px;
+  background: rgba(34, 197, 94, 0.15);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-green);
+}
+
+.perf-icon.yellow { background: rgba(234, 179, 8, 0.15); color: var(--accent-yellow); }
+.perf-icon.purple { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+.perf-icon.blue { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+
+.perf-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.perf-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.perf-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.perf-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.perf-bar {
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.perf-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.perf-fill.green { background: var(--accent-green); }
+.perf-fill.yellow { background: var(--accent-yellow); }
+.perf-fill.purple { background: var(--accent-purple); }
+.perf-fill.blue { background: var(--accent-blue); }
 
 .charts-section {
   display: grid;
@@ -538,14 +897,8 @@ onMounted(async () => {
   transition: all 0.15s ease;
 }
 
-.action-btn:hover {
-  color: var(--text-secondary);
-}
-
-.action-btn.active {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-}
+.action-btn:hover { color: var(--text-secondary); }
+.action-btn.active { background: var(--bg-elevated); color: var(--text-primary); }
 
 .view-all-btn {
   padding: 6px 12px;
@@ -564,9 +917,7 @@ onMounted(async () => {
   color: var(--text-primary);
 }
 
-.chart-container {
-  height: 300px;
-}
+.chart-container { height: 300px; }
 
 .user-list {
   display: flex;
@@ -586,9 +937,7 @@ onMounted(async () => {
   transition: all 0.15s ease;
 }
 
-.user-item:hover {
-  background: var(--bg-elevated);
-}
+.user-item:hover { background: var(--bg-elevated); }
 
 .user-rank {
   width: 24px;
@@ -621,10 +970,7 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.user-details {
-  flex: 1;
-  min-width: 0;
-}
+.user-details { flex: 1; min-width: 0; }
 
 .user-id {
   font-size: 13px;
@@ -635,14 +981,9 @@ onMounted(async () => {
   text-overflow: ellipsis;
 }
 
-.user-meta {
-  font-size: 11px;
-  color: var(--text-muted);
-}
+.user-meta { font-size: 11px; color: var(--text-muted); }
 
-.user-score {
-  text-align: right;
-}
+.user-score { text-align: right; }
 
 .score-value {
   display: block;
@@ -651,10 +992,7 @@ onMounted(async () => {
   color: var(--accent-green);
 }
 
-.score-label {
-  font-size: 10px;
-  color: var(--text-muted);
-}
+.score-label { font-size: 10px; color: var(--text-muted); }
 
 .empty-state {
   display: flex;
@@ -666,11 +1004,7 @@ onMounted(async () => {
   gap: 8px;
 }
 
-.empty-state svg {
-  width: 32px;
-  height: 32px;
-  opacity: 0.5;
-}
+.empty-state svg { width: 32px; height: 32px; opacity: 0.5; }
 
 .quick-actions {
   display: grid;
@@ -701,10 +1035,6 @@ onMounted(async () => {
   color: var(--accent-blue);
 }
 
-.action-card:active {
-  transform: translateX(2px);
-}
-
 .action-icon {
   width: 48px;
   height: 48px;
@@ -716,14 +1046,9 @@ onMounted(async () => {
   color: var(--accent-blue);
 }
 
-.action-icon svg {
-  width: 24px;
-  height: 24px;
-}
+.action-icon svg { width: 24px; height: 24px; }
 
-.action-content {
-  flex: 1;
-}
+.action-content { flex: 1; }
 
 .action-content h4 {
   font-size: 14px;
@@ -746,24 +1071,17 @@ onMounted(async () => {
 }
 
 @media (max-width: 1400px) {
-  .stats-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  .stats-grid { grid-template-columns: repeat(3, 1fr); }
+  .performance-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 1200px) {
-  .charts-section {
-    grid-template-columns: 1fr;
-  }
+  .charts-section { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 900px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .quick-actions {
-    grid-template-columns: 1fr;
-  }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .quick-actions { grid-template-columns: 1fr; }
+  .toolbar-right { flex-wrap: wrap; }
 }
 </style>

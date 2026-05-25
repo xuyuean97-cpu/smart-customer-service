@@ -1,14 +1,10 @@
 """
 商品与电商政策咨询节点
 """
-import sys
-import os
 from datetime import datetime
 from copy import deepcopy
 
 # 确保路径正确
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
-
 # 导入电商版状态与工具
 from ..state import EcommerceMainServiceState, RetrievalResult
 from langchain_core.runnables import RunnableConfig
@@ -70,17 +66,24 @@ async def product_info_agent(state: EcommerceMainServiceState, config: RunnableC
     new_messages = filter_messages_for_agent(state, max_msg_len, "商品政策问答子智能体")
     messages = new_messages if len(new_messages) > 0 else [AIMessage(content="暂无对话历史")]
 
-    # 5. 调用模型生成答案
+    # 5. 流式生成 — 逐 token 推送给前端，首 token 在 500ms 内到达
+    writer = get_stream_writer()
     kb_chain = kb_prompt | content_model
-    res = await kb_chain.ainvoke({
+    full_text = ""
+    async for chunk in kb_chain.astream({
         "user_query": user_query,
         "pre_context": pre_retrieval_result.content if pre_retrieval_result else "",
         "context": retrieval_result.content if retrieval_result else "未找到相关商品信息。",
         "messages": messages,
         "language": language
-    })
-    res.name = "商品政策问答子智能体"
+    }):
+        # LangChain streaming: chunk can be AIMessageChunk with .content
+        token = chunk.content if hasattr(chunk, 'content') else str(chunk) if isinstance(chunk, str) else ""
+        if token:
+            full_text += token
+            writer({"node_name": "product_info_agent_node", "data": {"type": "stream", "text": token}})
 
+    res = AIMessage(content=full_text, name="商品政策问答子智能体")
     return {
         "messages": [res],
         "retrieval_result": None,

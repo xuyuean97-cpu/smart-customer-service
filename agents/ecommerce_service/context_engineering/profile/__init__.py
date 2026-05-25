@@ -31,10 +31,7 @@ from .profile_extractor import ProfileExtractor, profile_extractor
 # ================= 3. 导入运营分析引擎 =================
 from .operational_analytics import OperationalAnalyticsEngine, operational_analytics_engine
 
-# ================= 4. 导入自动化调度系统 =================
-from .profile_scheduler import ProfileScheduler, ScheduleConfig, profile_scheduler
-
-# ================= 5. 向后兼容性别名 =================
+# ================= 4. 向后兼容性别名 =================
 SingleSessionProfile = SessionProfile
 DailyStatisticsProfile = DailyProfile
 DeepInsightProfile = InsightProfile
@@ -66,9 +63,6 @@ __all__ = [
     # 核心引擎与全局单例
     'ProfileExtractor', 'profile_extractor',
     'OperationalAnalyticsEngine', 'operational_analytics_engine',
-    'ProfileScheduler', 'profile_scheduler',
-    'ScheduleConfig',
-
     # 基础提取组件
     'SemanticExtractor', 'SessionMetricsCalculator', 'DataProfileAnalyzer'
 ]

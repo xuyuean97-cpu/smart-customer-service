@@ -13,8 +13,12 @@ from agents.ecommerce_service.tools.jd_order_sync import router as jd_sync_route
 from .wechat_callback import router as wechat_router
 from .ticket import router as ticket_router
 from .platform_callback import router as platform_router
+from .evaluation import router as evaluation_router
+from .platform_management import router as platform_management_router
 
 api_router = APIRouter()
+api_router.include_router(evaluation_router)
+api_router.include_router(platform_management_router)
 api_router.include_router(health_router)
 api_router.include_router(jd_sync_router)
 api_router.include_router(platform_router)

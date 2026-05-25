@@ -3,6 +3,7 @@
 提供与知识库系统异步通信功能
 """
 
+import os
 import aiohttp
 from typing import List, Dict, Any
 from common.logging import get_logger
@@ -89,7 +90,7 @@ async def get_dataset_id(base_url, dataset_name, api_key):
 
     try:
         # trust_env=False 忽略系统代理，防止本地 VPN/代理导致连接失败
-        async with aiohttp.ClientSession(trust_env=False) as session:
+        async with aiohttp.ClientSession(trust_env=False, timeout=aiohttp.ClientTimeout(total=10)) as session:
             async with session.get(request_url, params=params, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -155,6 +156,27 @@ async def retrieve_from_kb(question: str
     """
 
     logger.info(f"开始从知识库检索: '{question[:50]}...' (数据集: {dataset_name}, top_k: {top_k})")
+
+    # ── Redis 缓存（相同 query + dataset 5 分钟内不重复查 RAGFlow） ──
+    import hashlib as _hashlib
+    _cache_key = f"kb:{_hashlib.md5(f'{question}|{dataset_name}|{top_k}'.encode()).hexdigest()}"
+    try:
+        import redis.asyncio as _aioredis
+        _rds = _aioredis.Redis(
+            host=os.getenv("REDIS_HOST", "localhost"),
+            port=int(os.getenv("REDIS_PORT", "6379")),
+            password=os.getenv("REDIS_PASSWORD") or None,
+            socket_connect_timeout=1,
+        )
+        import json as _json
+        _cached = await _rds.get(_cache_key)
+        if _cached:
+            await _rds.expire(_cache_key, 300)
+            logger.info(f"KB 缓存命中: {dataset_name}")
+            return _json.loads(_cached)
+    except Exception:
+        pass  # Redis 不可用时静默跳过
+
     try:
         dataset_id = await get_dataset_id(address, dataset_name, api_key)
         if not dataset_id:
@@ -182,7 +204,8 @@ async def retrieve_from_kb(question: str
         logger.debug(f"发送检索请求: {retrieval_url}")
         # 发送异步POST请求
         async with aiohttp.ClientSession() as session:
-            async with session.post(retrieval_url, json=payload, headers=headers) as response:
+            _timeout = aiohttp.ClientTimeout(total=5)
+            async with session.post(retrieval_url, json=payload, headers=headers, timeout=_timeout) as response:
                 if response.status == 200:
                     retrieval_data = await response.json()
                     if not retrieval_data.get('data') or not retrieval_data['data'].get('chunks'):
@@ -203,6 +226,11 @@ async def retrieve_from_kb(question: str
                             'low_similarity': similarity < similarity_threshold
                         })
                     logger.info(f"检索完成: 找到 {len(results)} 条结果 (数据集: {dataset_name})")
+                    # 写 Redis 缓存
+                    try:
+                        await _rds.setex(_cache_key, 300, _json.dumps(results, ensure_ascii=False, default=str))
+                    except Exception:
+                        pass
                     # print(f"检索 query:{question} 检索结果: {results[:5]}\n\n")
                     # 记录低相似度结果的数量
                     low_similarity_count = sum(1 for r in results if r['low_similarity'])

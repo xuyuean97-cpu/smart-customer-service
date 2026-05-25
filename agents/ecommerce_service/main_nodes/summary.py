@@ -1,9 +1,6 @@
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.graph import MessagesState
-from agents.ecommerce_service.core import base_model
+from agents.ecommerce_service.core import content_model_no_thinking as base_model
 from common.logging import get_logger
 from agents.ecommerce_service.context_engineering.prompts import main_graph_prompts
 
